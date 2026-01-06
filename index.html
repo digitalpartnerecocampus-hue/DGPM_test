@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>URJA 2026 | EcoCampus</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="config.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    colors: {
+                        light: { bg: '#F3F4F6', card: '#FFFFFF', text: '#1F2937' },
+                        dark: { bg: '#0B0B15', card: '#151522', text: '#F9FAFB' },
+                        brand: { primary: '#6366F1', secondary: '#EC4899', accent: '#F59E0B' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 dark:bg-dark-bg text-gray-900 dark:text-white pb-28 antialiased selection:bg-brand-primary selection:text-white">
+
+    <div id="auth-modal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-[#151522] w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-white/10 relative overflow-hidden">
+            <div id="auth-loading" class="hidden absolute inset-0 bg-black/50 z-10 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-brand-primary"></div>
+            </div>
+
+            <div id="step-phone">
+                <h2 class="text-2xl font-black italic mb-2">URJA <span class="text-brand-primary">2026</span></h2>
+                <p class="text-sm text-gray-500 mb-6">Enter your mobile number to get started.</p>
+                
+                <div class="space-y-4">
+                    <div class="relative">
+                        <span class="absolute left-4 top-3.5 text-gray-400 font-bold">+91</span>
+                        <input type="tel" id="phone-input" class="w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl py-3 pl-12 pr-4 font-bold outline-none focus:border-brand-primary" placeholder="9876543210" maxlength="10">
+                    </div>
+                    <div id="recaptcha-container"></div>
+                    <button onclick="sendOTP()" class="w-full py-3 bg-brand-primary text-white font-bold rounded-xl shadow-lg active:scale-95 transition">Send OTP</button>
+                </div>
+            </div>
+
+            <div id="step-otp" class="hidden">
+                <button onclick="backToPhone()" class="text-xs text-gray-500 mb-4 flex items-center gap-1"><i data-lucide="arrow-left" class="w-3 h-3"></i> Back</button>
+                <h3 class="text-xl font-bold mb-2">Verify OTP</h3>
+                <p class="text-xs text-gray-500 mb-4">Sent to <span id="display-phone" class="font-bold text-white"></span></p>
+                <input type="number" id="otp-input" class="w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl py-3 px-4 font-bold text-center tracking-[1em] outline-none focus:border-brand-primary mb-4" placeholder="••••••">
+                <button onclick="verifyOTP()" class="w-full py-3 bg-brand-success text-white font-bold rounded-xl shadow-lg active:scale-95 transition">Verify & Login</button>
+            </div>
+
+            <div id="step-profile" class="hidden">
+                <h3 class="text-xl font-bold mb-1">Finish Profile</h3>
+                <p class="text-xs text-gray-500 mb-4">We need a few details for your ID card.</p>
+                <form onsubmit="saveProfile(event)" class="space-y-3">
+                    <input type="text" id="prof-name" placeholder="Full Name" required class="w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm outline-none focus:border-brand-primary">
+                    <input type="text" id="prof-dept" placeholder="Department (e.g. CS)" required class="w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm outline-none focus:border-brand-primary">
+                    <input type="text" id="prof-roll" placeholder="Roll No" required class="w-full bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm outline-none focus:border-brand-primary">
+                    <button type="submit" class="w-full py-3 bg-brand-secondary text-white font-bold rounded-xl shadow-lg mt-2">Complete Setup</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <header class="fixed top-0 w-full z-40 glass border-b border-gray-200 dark:border-white/5 transition-colors">
+        <div class="px-5 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-black tracking-tighter italic">URJA <span class="text-brand-primary">2026</span></h1>
+            <div class="flex items-center gap-2">
+                <div id="user-avatar-small" class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden hidden">
+                    <img src="" class="w-full h-full object-cover">
+                </div>
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
+                    <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                    <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="h-16"></div> 
+
+    <main class="min-h-screen">
+        <div id="tab-dashboard" class="tab-content animate-fade-in px-4">
+            <section class="mb-6 mt-4">
+                <div class="relative w-full h-52 rounded-3xl overflow-hidden shadow-2xl shadow-brand-primary/20 group">
+                    <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&q=80" class="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover:scale-110">
+                    <div class="absolute inset-0 bg-gradient-to-r from-brand-primary/90 to-purple-900/60 mix-blend-multiply"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                    <div class="absolute bottom-0 left-0 p-6 w-full">
+                        <span class="inline-block px-2 py-1 rounded bg-white/20 backdrop-blur text-[10px] font-bold uppercase tracking-wider text-white mb-2 border border-white/20">Annual Sports Meet</span>
+                        <h2 class="text-3xl font-black text-white leading-none italic">IGNITE THE<br>PASSION</h2>
+                    </div>
+                </div>
+            </section>
+
+            <div id="live-matches-section" class="mb-6 hidden">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="relative flex h-3 w-3">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-red-500">Live Action</h3>
+                </div>
+                <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2" id="live-matches-container">
+                    </div>
+            </div>
+
+            <div class="mb-8">
+                <h3 class="text-lg font-bold flex items-center gap-2 mb-4">
+                    <i data-lucide="trophy" class="w-5 h-5 text-brand-accent"></i> Top Athletes
+                </h3>
+                <div id="leaderboard-container">
+                    <div class="text-center py-8 text-gray-500 text-sm">Loading Rankings...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-profile" class="tab-content hidden">
+            <div class="relative mb-16">
+                <div class="h-32 w-full overflow-hidden relative group">
+                    <div class="absolute inset-0 bg-gradient-to-r from-brand-primary to-purple-600 opacity-90"></div>
+                    <img src="https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?w=800&q=80" class="w-full h-full object-cover mix-blend-overlay opacity-50">
+                </div>
+                <div class="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
+                    <div class="relative group cursor-pointer" onclick="uploadAvatar()">
+                        <div class="w-24 h-24 rounded-full border-4 border-gray-100 dark:border-dark-bg bg-gray-200 overflow-hidden shadow-xl">
+                            <img id="profile-img" src="" alt="Profile" class="w-full h-full bg-white object-cover">
+                        </div>
+                        <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition">
+                            <i data-lucide="camera" class="text-white w-6 h-6"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center px-4 mb-6">
+                <h2 class="text-2xl font-black text-gray-900 dark:text-white" id="profile-name">...</h2>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400" id="profile-details">...</p>
+                <div class="flex justify-center gap-2 mt-3" id="profile-badges">
+                    </div>
+            </div>
+            
+            <div class="px-4 mb-6">
+                <div class="glass p-4 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 flex justify-between divide-x divide-gray-200 dark:divide-white/10">
+                    <div class="text-center flex-1">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Gold</p>
+                        <p class="text-xl font-black text-[#FFD700]" id="stat-gold">0</p>
+                    </div>
+                    <div class="text-center flex-1">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Silver</p>
+                        <p class="text-xl font-black text-[#C0C0C0]" id="stat-silver">0</p>
+                    </div>
+                    <div class="text-center flex-1">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Bronze</p>
+                        <p class="text-xl font-black text-[#CD7F32]" id="stat-bronze">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="logout()" class="mx-4 mb-24 w-[calc(100%-2rem)] py-3 border border-red-500 text-red-500 font-bold rounded-xl hover:bg-red-500 hover:text-white transition">Logout</button>
+        </div>
+
+        <div id="tab-registration" class="tab-content hidden px-4 mt-4">
+            <h3 class="text-lg font-bold mb-4">Register for Games</h3>
+            <div class="grid grid-cols-2 gap-3 pb-24" id="registration-grid">
+                <div class="col-span-2 text-center py-10 text-gray-500">Loading Sports...</div>
+            </div>
+        </div>
+
+        <div id="tab-matches" class="tab-content hidden px-4 mt-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold">Schedule</h3>
+                <div class="bg-gray-200 dark:bg-white/10 p-1 rounded-lg flex text-[10px] font-bold">
+                    <button onclick="toggleSchedule('upcoming')" id="sch-upcoming-btn" class="px-4 py-1.5 rounded-md bg-white dark:bg-gray-700 shadow text-brand-primary">Upcoming</button>
+                    <button onclick="toggleSchedule('results')" id="sch-results-btn" class="px-4 py-1.5 rounded-md text-gray-500 dark:text-gray-400">Results</button>
+                </div>
+            </div>
+            <div id="view-upcoming" class="space-y-4 pb-24"></div>
+            <div id="view-results" class="space-y-4 pb-24 hidden"></div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 w-full z-40 glass pb-safe border-t border-gray-200 dark:border-white/5">
+        <div class="flex justify-around items-center h-16">
+            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-item active flex flex-col items-center justify-center w-full h-full text-brand-primary">
+                <i data-lucide="home" class="w-5 h-5 mb-1"></i>
+                <span class="text-[10px] font-medium">Home</span>
+            </button>
+            <button onclick="switchTab('matches')" id="btn-matches" class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-500 dark:text-gray-400">
+                <i data-lucide="calendar" class="w-5 h-5 mb-1"></i>
+                <span class="text-[10px] font-medium">Schedule</span>
+            </button>
+            <button onclick="switchTab('registration')" id="btn-registration" class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-500 dark:text-gray-400">
+                <i data-lucide="clipboard-edit" class="w-5 h-5 mb-1"></i>
+                <span class="text-[10px] font-medium">Register</span>
+            </button>
+            <button onclick="switchTab('profile')" id="btn-profile" class="nav-item flex flex-col items-center justify-center w-full h-full text-gray-500 dark:text-gray-400">
+                <i data-lucide="user" class="w-5 h-5 mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </button>
+        </div>
+    </nav>
+
+    <div id="reg-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeRegModal()"></div>
+        <div class="absolute bottom-0 w-full bg-white dark:bg-[#1A1A2E] rounded-t-3xl p-6 transition-transform flex flex-col max-h-[90vh]" id="reg-content">
+            <h3 class="text-2xl font-black italic dark:text-white mb-4" id="modal-sport-title">REGISTER</h3>
+            <div id="reg-form-container" class="overflow-y-auto no-scrollbar pb-10 flex-1"></div>
+        </div>
+    </div>
+
+    <input type="file" id="avatar-input" class="hidden" accept="image/*" onchange="handleAvatarUpload(this)">
+
+    <script src="script.js"></script>
+</body>
+</html>
