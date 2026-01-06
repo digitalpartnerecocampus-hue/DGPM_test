@@ -1,37 +1,54 @@
 // --- INITIALIZATION ---
-// Initialize Firebase
-firebase.initializeApp(CONFIG.firebaseConfig);
-const auth = firebase.auth();
-window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
 
-// Initialize Supabase
-const supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+// 1. Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(CONFIG.firebaseConfig);
+}
+const auth = firebase.auth();
+
+// Setup ReCaptcha (Invisible)
+// We check if the element exists first to avoid errors
+document.addEventListener('DOMContentLoaded', () => {
+    if(document.getElementById('recaptcha-container')) {
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+    }
+});
+
+// 2. Initialize Supabase
+// We use 'supabaseClient' to avoid conflict with the CDN library variable 'supabase'
+const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
 // State
-let currentUser = null; // Supabase user object
+let currentUser = null; 
 let currentFirebaseUser = null;
+let selectedSportId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
+    
+    // Theme Check (Default to Light)
+    if (localStorage.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+    
     checkAuth();
-    
-    // Setup Realtime Listeners
     setupRealtime();
-    
-    // Initial Data Fetch
     fetchSports();
     fetchLeaderboard();
     fetchMatches();
 });
 
-// --- 1. AUTHENTICATION LOGIC ---
+// --- AUTHENTICATION LOGIC ---
 
 function checkAuth() {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             currentFirebaseUser = user;
+            
             // Sync with Supabase
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('users')
                 .select('*')
                 .eq('firebase_uid', user.uid)
@@ -42,19 +59,31 @@ function checkAuth() {
                 document.getElementById('auth-modal').classList.add('hidden');
                 loadProfileUI();
             } else {
-                // User exists in Firebase but not Supabase (New Registration)
+                // New User: Show Profile Setup
                 document.getElementById('step-phone').classList.add('hidden');
                 document.getElementById('step-otp').classList.add('hidden');
                 document.getElementById('step-profile').classList.remove('hidden');
+                // Ensure modal is visible if we were halfway through
+                document.getElementById('auth-modal').classList.remove('hidden');
             }
         } else {
+            // Not Logged In
             document.getElementById('auth-modal').classList.remove('hidden');
+            document.getElementById('step-phone').classList.remove('hidden');
+            document.getElementById('step-otp').classList.add('hidden');
+            document.getElementById('step-profile').classList.add('hidden');
         }
     });
 }
 
 function sendOTP() {
-    const phone = "+91" + document.getElementById('phone-input').value;
+    const phoneVal = document.getElementById('phone-input').value;
+    if(!phoneVal || phoneVal.length !== 10) {
+        alert("Please enter a valid 10-digit number");
+        return;
+    }
+
+    const phone = "+91" + phoneVal;
     const appVerifier = window.recaptchaVerifier;
     
     document.getElementById('auth-loading').classList.remove('hidden');
@@ -68,17 +97,26 @@ function sendOTP() {
             document.getElementById('display-phone').innerText = phone;
         }).catch((error) => {
             document.getElementById('auth-loading').classList.add('hidden');
-            alert("Error: " + error.message);
+            console.error("SMS Error:", error);
+            alert("Error sending SMS. Check console for details. (Firebase Quota might be exceeded if on free tier)");
         });
 }
 
 function verifyOTP() {
     const code = document.getElementById('otp-input').value;
+    if(!window.confirmationResult) return;
+    
     window.confirmationResult.confirm(code).then((result) => {
-        // Success: onAuthStateChanged will trigger next steps
+        // Success: onAuthStateChanged will handle the rest
+        console.log("Phone verified!");
     }).catch((error) => {
         alert("Invalid OTP");
     });
+}
+
+function backToPhone() {
+    document.getElementById('step-otp').classList.add('hidden');
+    document.getElementById('step-phone').classList.remove('hidden');
 }
 
 async function saveProfile(e) {
@@ -88,7 +126,9 @@ async function saveProfile(e) {
     const roll = document.getElementById('prof-roll').value;
     const user = auth.currentUser;
 
-    const { data, error } = await supabase
+    if(!user) return;
+
+    const { data, error } = await supabaseClient
         .from('users')
         .insert([{
             firebase_uid: user.uid,
@@ -101,7 +141,8 @@ async function saveProfile(e) {
         .single();
 
     if (error) {
-        alert("Error creating profile: " + error.message);
+        console.error("Supabase Create Error:", error);
+        alert("Error saving profile: " + error.message);
     } else {
         currentUser = data;
         document.getElementById('auth-modal').classList.add('hidden');
@@ -110,23 +151,25 @@ async function saveProfile(e) {
 }
 
 function logout() {
-    auth.signOut().then(() => location.reload());
+    auth.signOut().then(() => {
+        window.location.reload();
+    });
 }
 
-// --- 2. DATA FETCHING (SUPABASE) ---
+// --- DATA FETCHING ---
 
 async function fetchSports() {
-    const { data, error } = await supabase.from('sports').select('*');
+    const { data, error } = await supabaseClient.from('sports').select('*');
     if (data) renderRegistrationCards(data);
 }
 
 async function fetchLeaderboard() {
-    const { data, error } = await supabase.from('leaderboard').select('*').limit(10);
+    const { data, error } = await supabaseClient.from('leaderboard').select('*').limit(10);
     if (data) renderLeaderboard(data);
 }
 
 async function fetchMatches() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('matches')
         .select(`*, sports(name)`)
         .order('start_time', { ascending: true });
@@ -137,24 +180,33 @@ async function fetchMatches() {
     }
 }
 
-// --- 3. UI RENDERING ---
+// --- UI RENDERING ---
 
 function loadProfileUI() {
     if(!currentUser) return;
-    document.getElementById('profile-name').innerText = currentUser.full_name;
-    document.getElementById('profile-details').innerText = `${currentUser.department} • ${currentUser.roll_no}`;
-    document.getElementById('profile-img').src = currentUser.avatar_url;
-    document.getElementById('user-avatar-small').classList.remove('hidden');
-    document.getElementById('user-avatar-small').querySelector('img').src = currentUser.avatar_url;
     
-    // Stats
-    document.getElementById('stat-gold').innerText = currentUser.medals_gold;
-    document.getElementById('stat-silver').innerText = currentUser.medals_silver;
-    document.getElementById('stat-bronze').innerText = currentUser.medals_bronze;
+    // Safety checks for elements
+    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; }
+    
+    setTxt('profile-name', currentUser.full_name);
+    setTxt('profile-details', `${currentUser.department} • ${currentUser.roll_no}`);
+    setTxt('stat-gold', currentUser.medals_gold);
+    setTxt('stat-silver', currentUser.medals_silver);
+    setTxt('stat-bronze', currentUser.medals_bronze);
+
+    if(document.getElementById('profile-img')) 
+        document.getElementById('profile-img').src = currentUser.avatar_url;
+    
+    if(document.getElementById('user-avatar-small')) {
+        document.getElementById('user-avatar-small').classList.remove('hidden');
+        document.getElementById('user-avatar-small').querySelector('img').src = currentUser.avatar_url;
+    }
 }
 
 function renderRegistrationCards(sports) {
     const grid = document.getElementById('registration-grid');
+    if(!grid) return;
+    
     grid.innerHTML = sports.map(sport => {
         const isClosed = sport.status === "Closed";
         return `
@@ -181,7 +233,7 @@ function renderSchedule(matches) {
     const results = matches.filter(m => m.status === 'Finished');
 
     const card = (m) => `
-        <div class="glass p-4 rounded-2xl bg-white dark:bg-dark-card border-l-4 ${m.status === 'Live' ? 'border-brand-primary' : 'border-gray-300'} shadow-sm">
+        <div class="glass p-4 rounded-2xl bg-white dark:bg-dark-card border-l-4 ${m.status === 'Live' ? 'border-brand-primary' : 'border-gray-300'} shadow-sm mb-3">
             <div class="flex justify-between mb-2">
                  ${m.status === 'Live' ? `<span class="px-2 py-0.5 bg-brand-primary/10 text-brand-primary text-[10px] font-bold rounded animate-pulse">LIVE</span>` : `<span class="text-xs font-bold text-gray-500">${new Date(m.start_time).toLocaleString()}</span>`}
                  <span class="text-xs text-gray-500">${m.location || 'TBA'}</span>
@@ -198,20 +250,28 @@ function renderSchedule(matches) {
         </div>
     `;
 
-    upcomingContainer.innerHTML = upcoming.map(card).join('') || '<p class="text-center text-gray-500">No matches scheduled.</p>';
-    resultsContainer.innerHTML = results.map(card).join('') || '<p class="text-center text-gray-500">No results yet.</p>';
+    if(upcomingContainer) upcomingContainer.innerHTML = upcoming.map(card).join('') || '<p class="text-center text-gray-500 py-4">No matches scheduled.</p>';
+    if(resultsContainer) resultsContainer.innerHTML = results.map(card).join('') || '<p class="text-center text-gray-500 py-4">No results yet.</p>';
 }
 
 function renderLeaderboard(users) {
-    document.getElementById('leaderboard-container').innerHTML = users.map((u, index) => `
-        <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5">
+    const container = document.getElementById('leaderboard-container');
+    if(!container) return;
+
+    if(users.length === 0) {
+        container.innerHTML = '<div class="text-center py-4 text-gray-500">Leaderboard is empty</div>';
+        return;
+    }
+
+    container.innerHTML = users.map((u, index) => `
+        <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-white/5 rounded-xl mb-2">
              <div class="font-bold text-gray-400 w-4">${index + 1}</div>
-             <img src="${u.avatar_url}" class="w-8 h-8 rounded-full bg-gray-200">
+             <img src="${u.avatar_url}" class="w-8 h-8 rounded-full bg-gray-200 object-cover">
              <div class="flex-1">
                  <h4 class="font-bold text-sm dark:text-white">${u.full_name}</h4>
                  <p class="text-[10px] text-gray-500 uppercase">${u.department}</p>
              </div>
-             <div class="font-black text-brand-primary">${u.medals_gold * 50 + u.medals_silver * 30 + u.medals_bronze * 10} pts</div>
+             <div class="font-black text-brand-primary">${u.points || 0} pts</div>
         </div>
     `).join('');
 }
@@ -219,6 +279,7 @@ function renderLeaderboard(users) {
 function renderLiveMatches(matches) {
     const container = document.getElementById('live-matches-container');
     const section = document.getElementById('live-matches-section');
+    if(!container || !section) return;
     
     if(matches.length === 0) {
         section.classList.add('hidden');
@@ -238,9 +299,7 @@ function renderLiveMatches(matches) {
     `).join('');
 }
 
-// --- 4. REGISTRATION LOGIC ---
-
-let selectedSportId = null;
+// --- REGISTRATION LOGIC ---
 
 function openReg(id, name, type, size) {
     selectedSportId = id;
@@ -251,16 +310,20 @@ function openReg(id, name, type, size) {
     
     let html = `<form onsubmit="submitRegistration(event)" class="space-y-4 pt-2">`;
     
-    // Auto-filled Captain (Current User)
-    html += `
-        <div class="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
-            <h4 class="text-xs font-bold uppercase text-brand-primary mb-3">Participant Info</h4>
-            <div class="text-sm">
-                <p><strong>Name:</strong> ${currentUser.full_name}</p>
-                <p><strong>Phone:</strong> ${currentUser.phone}</p>
+    // Check if user is logged in for pre-fill
+    if(currentUser) {
+        html += `
+            <div class="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
+                <h4 class="text-xs font-bold uppercase text-brand-primary mb-3">Participant Info</h4>
+                <div class="text-sm">
+                    <p><strong>Name:</strong> ${currentUser.full_name}</p>
+                    <p><strong>Phone:</strong> ${currentUser.phone}</p>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    } else {
+        html += `<p class="text-red-500 text-sm font-bold">Please Login first to register.</p>`;
+    }
 
     if(type === 'Team') {
         html += `
@@ -277,7 +340,13 @@ function openReg(id, name, type, size) {
         `;
     }
 
-    html += `<button type="submit" class="w-full py-4 bg-brand-primary text-white font-bold rounded-xl shadow-lg mt-2">Confirm Registration</button></form>`;
+    if(currentUser) {
+        html += `<button type="submit" class="w-full py-4 bg-brand-primary text-white font-bold rounded-xl shadow-lg mt-2">Confirm Registration</button>`;
+    } else {
+        html += `<button type="button" onclick="location.reload()" class="w-full py-4 bg-gray-500 text-white font-bold rounded-xl shadow-lg mt-2">Login Now</button>`;
+    }
+    
+    html += `</form>`;
     
     container.innerHTML = html;
     modal.classList.remove('hidden');
@@ -296,7 +365,7 @@ async function submitRegistration(e) {
         });
     }
 
-    const { error } = await supabase.from('registrations').insert([{
+    const { error } = await supabaseClient.from('registrations').insert([{
         user_id: currentUser.id,
         sport_id: selectedSportId,
         team_name: teamName,
@@ -317,38 +386,59 @@ function closeRegModal() {
     document.getElementById('reg-modal').classList.add('hidden');
 }
 
-// --- 5. REALTIME UPDATES ---
+// --- UTILS ---
+
 function setupRealtime() {
-    supabase
+    supabaseClient
     .channel('public:matches')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, payload => {
         console.log('Match Update:', payload);
-        fetchMatches(); // Refresh UI on update
+        fetchMatches(); 
     })
     .subscribe();
 }
 
-// --- 6. UTILS (Tabs, Dark Mode) ---
+// Toggle Theme Logic
+const themeBtn = document.getElementById('theme-toggle');
+if(themeBtn) {
+    themeBtn.addEventListener('click', () => {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.theme = 'light';
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.theme = 'dark';
+        }
+    });
+}
+
+// Tab Switching
 window.switchTab = function(id) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.getElementById('tab-' + id).classList.remove('hidden');
+    const target = document.getElementById('tab-' + id);
+    if(target) target.classList.remove('hidden');
+    
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.remove('active', 'text-brand-primary');
         btn.classList.add('text-gray-500');
     });
-    document.getElementById('btn-' + id).classList.add('active', 'text-brand-primary');
+    
+    const activeBtn = document.getElementById('btn-' + id);
+    if(activeBtn) {
+        activeBtn.classList.add('active', 'text-brand-primary');
+        activeBtn.classList.remove('text-gray-500');
+    }
 }
 
-// --- CLOUDINARY UPLOAD ---
-function uploadAvatar() {
+// Cloudinary Upload
+window.uploadAvatar = function() {
     document.getElementById('avatar-input').click();
 }
 
-async function handleAvatarUpload(input) {
+window.handleAvatarUpload = async function(input) {
     const file = input.files[0];
     if (!file) return;
 
-    // Show loading
     const img = document.getElementById('profile-img');
     img.style.opacity = '0.5';
 
@@ -364,15 +454,15 @@ async function handleAvatarUpload(input) {
         const data = await res.json();
         
         // Update Supabase
-        await supabase.from('users').update({ avatar_url: data.secure_url }).eq('id', currentUser.id);
+        await supabaseClient.from('users').update({ avatar_url: data.secure_url }).eq('id', currentUser.id);
         
-        // Update UI
         currentUser.avatar_url = data.secure_url;
         loadProfileUI();
         img.style.opacity = '1';
         
     } catch (err) {
-        alert("Upload failed");
+        console.error("Cloudinary Error", err);
+        alert("Upload failed. Check Cloudinary Config.");
         img.style.opacity = '1';
     }
 }
