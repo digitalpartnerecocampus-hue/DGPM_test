@@ -17,12 +17,8 @@
 
     <script>
         const supabaseAuthCheck = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
-        
-        // Check session immediately
         supabaseAuthCheck.auth.getSession().then(({ data: { session } }) => {
-            if (!session) {
-                window.location.href = 'login.html';
-            }
+            if (!session) window.location.href = 'login.html';
         });
     </script>
 
@@ -185,6 +181,13 @@
     </div>
     
     <input type="file" id="avatar-input" class="hidden" accept="image/*" onchange="handleAvatarUpload(this)">
+
+    <div id="toast-container" class="fixed top-0 left-1/2 transform -translate-x-1/2 z-[100] toast-hidden w-full max-w-sm p-4">
+        <div id="toast-content" class="px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-3 backdrop-blur-md border border-white/10">
+            <span id="toast-icon"></span>
+            <span id="toast-text"></span>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
