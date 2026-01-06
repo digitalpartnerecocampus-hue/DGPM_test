@@ -3,7 +3,7 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease; 
 }
 
-/* --- GLASSMORPHISM (For Main App) --- */
+/* --- GLASSMORPHISM --- */
 .glass {
     background: rgba(255, 255, 255, 0.85); 
     backdrop-filter: blur(16px);
@@ -25,16 +25,15 @@ nav.glass {
 }
 
 /* --- UTILITIES --- */
-/* Hide Scrollbar but allow scrolling */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* --- FORM INPUTS (Used in Login.html & Registration Modals) --- */
+/* --- FORM INPUTS --- */
 .input-field {
     width: 100%;
     background-color: #F9FAFB;
     border: 1px solid #E5E7EB;
-    border-radius: 0.75rem; /* rounded-xl */
+    border-radius: 0.75rem;
     padding: 0.875rem 1rem;
     font-size: 0.875rem;
     outline: none;
@@ -42,9 +41,8 @@ nav.glass {
     color: #1F2937;
 }
 
-/* Dark Mode Inputs */
 .dark .input-field {
-    background-color: rgba(0,0,0,0.3); /* Transparent dark background */
+    background-color: rgba(0,0,0,0.3);
     border-color: rgba(255,255,255,0.1);
     color: white;
 }
@@ -52,9 +50,8 @@ nav.glass {
     color: #6B7280;
 }
 
-/* Focus State */
 .input-field:focus {
-    border-color: #6366F1; /* Brand Primary */
+    border-color: #6366F1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
     background-color: #FFFFFF;
 }
@@ -84,3 +81,18 @@ nav.glass {
 .nav-item.active { color: #6366F1; }
 .nav-item.active i { transform: translateY(-3px); transition: transform 0.3s ease; }
 .nav-item.active span { font-weight: 800; }
+
+/* --- MOBILE APP TOAST NOTIFICATION --- */
+#toast-container {
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+.toast-hidden {
+    opacity: 0;
+    transform: translate(-50%, -150%); /* Start hidden above */
+    pointer-events: none;
+}
+.toast-visible {
+    opacity: 1;
+    transform: translate(-50%, 20px); /* Drop down to visible */
+    pointer-events: auto;
+}
