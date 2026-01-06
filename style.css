@@ -1,0 +1,44 @@
+/* --- BASE TRANSITIONS --- */
+body { 
+    transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+/* --- GLASSMORPHISM --- */
+.glass {
+    background: rgba(255, 255, 255, 0.85); 
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.dark .glass {
+    background: rgba(21, 21, 34, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Seamless Bottom Nav */
+nav.glass {
+    border: none !important;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.03);
+}
+.dark nav.glass {
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.2);
+}
+
+/* --- UTILITIES --- */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* --- BOTTOM NAV ANIMATIONS --- */
+.nav-item { position: relative; transition: all 0.3s ease; }
+.nav-item.active { color: #6366F1; }
+.nav-item.active i { transform: translateY(-3px); transition: transform 0.3s ease; }
+.nav-item.active span { font-weight: 800; }
+
+/* --- ANIMATIONS --- */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
