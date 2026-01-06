@@ -6,12 +6,12 @@ const CONFIG = {
 
     // 2. FIREBASE (Auth)
     firebaseConfig: {
-        apiKey: "YOUR_FIREBASE_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT.appspot.com",
-        messagingSenderId: "SENDER_ID",
-        appId: "APP_ID"
+        apiKey: "AIzaSyAVH7EcQrBwgoSgghOQ87LM-e1-h4LXOl8",
+        authDomain: "dgpm-d862c.firebaseapp.com",
+        projectId: "dgpm-d862c",
+        storageBucket: "dgpm-d862c.firebasestorage.app",
+        messagingSenderId: "659776836882",
+        appId: "1:659776836882:web:6c3df3f12960d6127acfcb"
     },
 
     // 3. CLOUDINARY (Image Upload)
