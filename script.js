@@ -7,14 +7,14 @@ let allLeaderboardData = [];
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     
-    // 1. Theme Check
+    // Theme Check
     if (localStorage.theme === 'dark') {
         document.documentElement.classList.add('dark');
     } else {
         document.documentElement.classList.remove('dark');
     }
 
-    // 2. Start App
+    // Start App
     checkUserAndLoad();
 });
 
@@ -28,9 +28,8 @@ async function checkUserAndLoad() {
         return;
     }
 
-    // Load User, Data, and Registrations
     await fetchUserProfile(session.user.id);
-    await fetchUserRegistrations(session.user.id); // New: Load History
+    await fetchUserRegistrations(session.user.id);
     setupRealtime();
     fetchData();
 }
@@ -49,7 +48,6 @@ async function fetchUserProfile(userId) {
 }
 
 async function fetchUserRegistrations(userId) {
-    // Fetch registrations with Sport details
     const { data, error } = await supabaseClient
         .from('registrations')
         .select('*, sports(*)')
@@ -85,68 +83,6 @@ async function fetchData() {
     }
 }
 
-// --- LEADERBOARD LOGIC ---
-
-function processLeaderboardData(users) {
-    // Sort by Gold > Silver > Bronze
-    return users
-        .filter(u => u.total_points > 0)
-        .sort((a, b) => {
-            if (b.medals_gold !== a.medals_gold) return b.medals_gold - a.medals_gold;
-            if (b.medals_silver !== a.medals_silver) return b.medals_silver - a.medals_silver;
-            return b.medals_bronze - a.medals_bronze;
-        });
-}
-
-function renderLeaderboardWidget(users) {
-    const container = document.getElementById('leaderboard-container');
-    const viewAllBtn = document.getElementById('view-all-leaderboard');
-    
-    if(!container) return;
-
-    if (users.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-300 dark:border-white/10 rounded-xl">No medals awarded yet.</div>';
-        viewAllBtn.classList.add('hidden');
-        return;
-    }
-
-    const top5 = users.slice(0, 5);
-    container.innerHTML = top5.map((u, index) => renderLeaderboardItem(u, index)).join('');
-    
-    if (users.length > 5) {
-        viewAllBtn.classList.remove('hidden');
-        viewAllBtn.innerText = `View Full Leaderboard (${users.length})`;
-    } else {
-        viewAllBtn.classList.add('hidden');
-    }
-    
-    lucide.createIcons();
-}
-
-function renderLeaderboardItem(u, index) {
-    let rankColor = "text-gray-400";
-    if (index === 0) rankColor = "text-[#FFD700]";
-    if (index === 1) rankColor = "text-[#C0C0C0]";
-    if (index === 2) rankColor = "text-[#CD7F32]";
-
-    return `
-        <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-white/5 rounded-xl mb-2">
-             <div class="font-black ${rankColor} w-6 text-center text-lg">${index + 1}</div>
-             <img src="${u.avatar_url}" class="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100 dark:border-white/10">
-             <div class="flex-1">
-                 <h4 class="font-bold text-sm dark:text-white">${u.first_name} ${u.last_name}</h4>
-                 <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">${u.course || ''} ${u.class_name || ''}</p>
-             </div>
-             <div class="flex gap-2 text-xs font-bold">
-                ${u.medals_gold > 0 ? `<span class="text-[#FFD700] flex items-center gap-0.5">${u.medals_gold}<i data-lucide="medal" class="w-3 h-3"></i></span>` : ''}
-                ${u.medals_silver > 0 ? `<span class="text-[#C0C0C0] flex items-center gap-0.5">${u.medals_silver}<i data-lucide="medal" class="w-3 h-3"></i></span>` : ''}
-                ${u.medals_bronze > 0 ? `<span class="text-[#CD7F32] flex items-center gap-0.5">${u.medals_bronze}<i data-lucide="medal" class="w-3 h-3"></i></span>` : ''}
-             </div>
-             <div class="w-12 text-right font-black text-brand-primary text-sm">${u.total_points}</div>
-        </div>
-    `;
-}
-
 // --- UI RENDERING ---
 
 function renderProfile(user) {
@@ -156,8 +92,8 @@ function renderProfile(user) {
     };
 
     setTxt('profile-name', `${user.first_name || ''} ${user.last_name || ''}`);
-    // Display Course here
-    setTxt('profile-details', `${user.course || ''} ${user.class_name || ''} • ${user.student_id || ''}`);
+    // FIXED: "FY BAF" format
+    setTxt('profile-details', `${user.class_name || ''} ${user.course || ''} • ${user.student_id || ''}`);
     
     setTxt('stat-gold', user.medals_gold || 0);
     setTxt('stat-silver', user.medals_silver || 0);
@@ -176,7 +112,7 @@ function renderRegistrationCards(sports) {
     grid.innerHTML = sports.map(sport => {
         const isClosed = sport.status === "Closed";
         return `
-            <div class="glass p-4 rounded-2xl border ${isClosed ? 'border-gray-200 opacity-60' : 'border-transparent hover:border-brand-primary/30'} cursor-pointer bg-white dark:bg-white/5 shadow-sm transition-all active:scale-95" onclick="openReg('${sport.id}', '${sport.name}')">
+            <div class="glass p-4 rounded-2xl border ${isClosed ? 'border-gray-200 opacity-60' : 'border-transparent hover:border-brand-primary/30'} cursor-pointer bg-white dark:bg-white/5 shadow-sm transition-all active:scale-95" onclick="openReg('${sport.id}', '${sport.name}', '${sport.type}')">
                 <div class="flex justify-between items-start mb-2">
                     <div class="p-2 ${isClosed ? 'bg-gray-200 dark:bg-white/10' : 'bg-brand-primary/10'} rounded-lg">
                         <i data-lucide="${sport.icon || 'trophy'}" class="w-5 h-5 ${isClosed ? 'text-gray-500' : 'text-brand-primary'}"></i>
@@ -191,6 +127,334 @@ function renderRegistrationCards(sports) {
     lucide.createIcons();
 }
 
+// --- NEW REGISTRATION & TEAM FLOW ---
+
+window.openReg = async function(sportId, sportName, sportType) {
+    document.getElementById('modal-sport-title').innerText = sportName;
+    document.getElementById('reg-modal').classList.remove('hidden');
+    const container = document.getElementById('reg-form-container');
+    
+    // Show Loading
+    container.innerHTML = `<div class="text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-t-2 border-brand-primary mx-auto"></div></div>`;
+    
+    // Slide Up Modal
+    setTimeout(() => { document.getElementById('reg-content').classList.remove('translate-y-full'); }, 10);
+
+    // 1. Check if Individual Registration exists
+    const { data: reg } = await supabaseClient
+        .from('registrations')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('sport_id', sportId)
+        .single();
+
+    // STATE 1: Not Registered Individually -> Show Register Button
+    if (!reg) {
+        renderIndividualRegistration(container, sportId, sportName, sportType);
+        return;
+    }
+
+    // STATE 2: Registered Solo -> Done
+    if (sportType === 'Solo') {
+        container.innerHTML = `
+            <div class="text-center py-10">
+                <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                </div>
+                <h4 class="font-bold text-lg dark:text-white">You are Registered!</h4>
+                <p class="text-gray-500 text-sm mt-2">Get ready for your event.</p>
+            </div>
+        `;
+        lucide.createIcons();
+        return;
+    }
+
+    // STATE 3: Registered for Team Sport -> Load Team Hub
+    loadTeamHub(container, sportId);
+}
+
+// Render Individual Registration Screen
+function renderIndividualRegistration(container, sportId, sportName, sportType) {
+    container.innerHTML = `
+        <div class="py-4">
+            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-xl mb-4 border border-gray-100 dark:border-white/5">
+                <p class="text-xs uppercase font-bold text-gray-400 mb-1">Participant</p>
+                <p class="font-bold text-lg dark:text-white">${currentUser.first_name} ${currentUser.last_name}</p>
+                <p class="text-sm text-gray-500">${currentUser.class_name || ''} ${currentUser.course || ''} • ${currentUser.student_id}</p>
+            </div>
+            
+            <p class="text-xs text-gray-500 mb-4 text-center">
+                Step 1: Confirm your individual entry for <strong>${sportName}</strong>.
+                ${sportType === 'Team' ? '<br>(You can join or create a team after this step)' : ''}
+            </p>
+
+            <button onclick="submitIndividualReg('${sportId}', '${sportType}')" class="w-full py-3 bg-brand-primary text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform">
+                Confirm Registration
+            </button>
+        </div>
+    `;
+}
+
+// Handle Individual Registration Submit
+window.submitIndividualReg = async function(sportId, sportType) {
+    const { error } = await supabaseClient.from('registrations').insert({
+        user_id: currentUser.id,
+        sport_id: sportId
+    });
+
+    if(error) {
+        showToast(error.message, 'error');
+    } else {
+        showToast("Registered Successfully!", 'success');
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        fetchUserRegistrations(currentUser.id); // Refresh history
+        
+        // If Team Sport, reload modal to show Team Hub
+        if (sportType === 'Team') {
+            loadTeamHub(document.getElementById('reg-form-container'), sportId);
+        } else {
+            closeRegModal();
+        }
+    }
+}
+
+// --- TEAM HUB LOGIC ---
+
+async function loadTeamHub(container, sportId) {
+    // Check if user is already in a team for this sport
+    // We need to join team_members -> teams -> filter by sport_id
+    const { data: myTeamMember } = await supabaseClient
+        .from('team_members')
+        .select('*, teams(*)')
+        .eq('user_id', currentUser.id)
+        .eq('teams.sport_id', sportId) // Note: Deep filtering requires correct setup, fallback below
+        .maybeSingle();
+
+    // Fetch user's team status strictly by fetching all teams they are in, then filtering in JS 
+    // (Simpler for now given Supabase JS limitations with deep filters on 'inner join')
+    const { data: allMyTeams } = await supabaseClient
+        .from('team_members')
+        .select('*, teams(*)')
+        .eq('user_id', currentUser.id);
+        
+    const teamMembership = allMyTeams ? allMyTeams.find(tm => tm.teams.sport_id == sportId) : null;
+
+    if (teamMembership) {
+        if (teamMembership.status === 'Accepted' || teamMembership.role === 'Captain') {
+            renderMyTeamDashboard(container, teamMembership.teams, teamMembership.role);
+        } else if (teamMembership.status === 'Pending') {
+            renderPendingRequestState(container, teamMembership.teams);
+        } else {
+             renderJoinOrCreateOptions(container, sportId); // Rejected
+        }
+    } else {
+        renderJoinOrCreateOptions(container, sportId);
+    }
+}
+
+// Option A: Join or Create
+async function renderJoinOrCreateOptions(container, sportId) {
+    // Fetch available teams
+    const { data: teams } = await supabaseClient
+        .from('teams')
+        .select('*, users:captain_id(first_name, last_name)')
+        .eq('sport_id', sportId)
+        .eq('status', 'Open');
+
+    let teamsHtml = '';
+    if (teams && teams.length > 0) {
+        teamsHtml = teams.map(t => `
+            <div class="team-card flex justify-between items-center p-3 border border-gray-200 dark:border-white/10 rounded-xl mb-2 bg-gray-50 dark:bg-white/5">
+                <div>
+                    <h4 class="font-bold text-sm dark:text-white">${t.name}</h4>
+                    <p class="text-[10px] text-gray-500">Capt: ${t.users?.first_name} ${t.users?.last_name}</p>
+                </div>
+                <button onclick="requestJoinTeam('${t.id}', '${sportId}')" class="px-3 py-1.5 bg-brand-primary/10 text-brand-primary text-xs font-bold rounded-lg hover:bg-brand-primary hover:text-white transition">
+                    Join
+                </button>
+            </div>
+        `).join('');
+    } else {
+        teamsHtml = `<p class="text-center text-xs text-gray-400 py-4">No open teams found.</p>`;
+    }
+
+    container.innerHTML = `
+        <div class="space-y-6">
+            <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                <h4 class="font-bold text-sm text-blue-800 dark:text-blue-300 mb-2">Create a Team</h4>
+                <p class="text-xs text-blue-600 dark:text-blue-400 mb-3">Become the Captain and invite others.</p>
+                <div class="flex gap-2">
+                    <input type="text" id="new-team-name" placeholder="Enter Team Name" class="flex-1 text-sm p-2 rounded-lg border border-blue-200 dark:border-white/10 dark:bg-black/20 focus:outline-none">
+                    <button onclick="createNewTeam('${sportId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Create</button>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="font-bold text-sm mb-3">Available Teams</h4>
+                <div class="max-h-48 overflow-y-auto no-scrollbar">
+                    ${teamsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Action: Create Team
+window.createNewTeam = async function(sportId) {
+    const name = document.getElementById('new-team-name').value;
+    if (!name) return showToast("Enter a team name", 'error');
+
+    // 1. Create Team
+    const { data: team, error: teamErr } = await supabaseClient
+        .from('teams')
+        .insert({ sport_id: sportId, captain_id: currentUser.id, name: name })
+        .select()
+        .single();
+
+    if (teamErr) return showToast(teamErr.message, 'error');
+
+    // 2. Add Captain as Member (Accepted)
+    const { error: memErr } = await supabaseClient
+        .from('team_members')
+        .insert({ team_id: team.id, user_id: currentUser.id, role: 'Captain', status: 'Accepted' });
+
+    if (memErr) return showToast("Error adding captain", 'error');
+
+    showToast("Team Created!", 'success');
+    loadTeamHub(document.getElementById('reg-form-container'), sportId);
+}
+
+// Action: Request Join
+window.requestJoinTeam = async function(teamId, sportId) {
+    const { error } = await supabaseClient
+        .from('team_members')
+        .insert({ team_id: teamId, user_id: currentUser.id, role: 'Player', status: 'Pending' });
+
+    if (error) return showToast(error.message, 'error');
+
+    showToast("Request Sent!", 'success');
+    loadTeamHub(document.getElementById('reg-form-container'), sportId);
+}
+
+// Render: Pending State
+function renderPendingRequestState(container, team) {
+    container.innerHTML = `
+        <div class="text-center py-10">
+            <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="clock" class="w-8 h-8"></i>
+            </div>
+            <h4 class="font-bold text-lg dark:text-white">Request Pending</h4>
+            <p class="text-gray-500 text-sm mt-2">Waiting for captain of <strong>${team.name}</strong> to accept.</p>
+        </div>
+    `;
+    lucide.createIcons();
+}
+
+// Render: My Team Dashboard
+async function renderMyTeamDashboard(container, team, role) {
+    // Fetch members
+    const { data: members } = await supabaseClient
+        .from('team_members')
+        .select('*, users(*)')
+        .eq('team_id', team.id);
+
+    const acceptedMembers = members.filter(m => m.status === 'Accepted');
+    const pendingMembers = members.filter(m => m.status === 'Pending');
+
+    let html = `
+        <div class="text-center mb-6">
+            <h4 class="font-black text-2xl dark:text-white">${team.name}</h4>
+            <span class="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-lg">Status: ${team.status}</span>
+        </div>
+    `;
+
+    // Captain Area: Requests
+    if (role === 'Captain' && pendingMembers.length > 0) {
+        html += `
+            <div class="mb-6">
+                <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">Join Requests</h5>
+                <div class="bg-yellow-50 dark:bg-yellow-900/10 rounded-xl overflow-hidden border border-yellow-100 dark:border-yellow-900/20">
+                    ${pendingMembers.map(m => `
+                        <div class="request-item p-3 flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-bold dark:text-white">${m.users.first_name} ${m.users.last_name}</p>
+                                <p class="text-[10px] text-gray-500">${m.users.class_name} ${m.users.course}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="manageRequest('${m.id}', 'Rejected')" class="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                <button onclick="manageRequest('${m.id}', 'Accepted')" class="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><i data-lucide="check" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Squad List
+    html += `
+        <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">Squad (${acceptedMembers.length})</h5>
+        <div class="space-y-2">
+            ${acceptedMembers.map(m => `
+                <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5">
+                    <img src="${m.users.avatar_url || 'https://via.placeholder.com/40'}" class="w-8 h-8 rounded-full bg-gray-200 object-cover">
+                    <div>
+                        <p class="text-sm font-bold dark:text-white flex items-center gap-1">
+                            ${m.users.first_name} ${m.users.last_name}
+                            ${m.role === 'Captain' ? '<i data-lucide="crown" class="w-3 h-3 text-brand-primary"></i>' : ''}
+                        </p>
+                        <p class="text-[10px] text-gray-500">${m.users.class_name} ${m.users.course}</p>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    container.innerHTML = html;
+    lucide.createIcons();
+}
+
+// Action: Manage Request (Captain)
+window.manageRequest = async function(memberId, status) {
+    const { error } = await supabaseClient
+        .from('team_members')
+        .update({ status: status })
+        .eq('id', memberId);
+
+    if (error) return showToast(error.message, 'error');
+    
+    showToast(`Request ${status}`, 'success');
+    
+    // We rely on Realtime to update UI, but forcing a reload ensures sync
+    const modalContainer = document.getElementById('reg-form-container');
+    // To reload correct sport, we need the ID. 
+    // Optimization: Just close modal or refresh logic. For now, close modal.
+    closeRegModal(); 
+}
+
+// --- UTILS & REALTIME ---
+
+window.closeRegModal = function() {
+    const content = document.getElementById('reg-content');
+    content.classList.add('translate-y-full');
+    setTimeout(() => {
+        document.getElementById('reg-modal').classList.add('hidden');
+    }, 300);
+}
+
+function setupRealtime() {
+    // Listen for Team Updates & Requests
+    supabaseClient.channel('public:teams')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+            // If modal is open, we could refresh it dynamically, but let's just toast
+            // showToast("Team Updated", 'info');
+        })
+        .subscribe();
+}
+
+// --- STANDARD FUNCTIONS (Profile, Tabs, Upload, History etc.) ---
+
+// Registration History
 function renderRegistrationHistory(registrations) {
     const container = document.getElementById('view-reg-history');
     if(!container) return;
@@ -217,6 +481,7 @@ function renderRegistrationHistory(registrations) {
     lucide.createIcons();
 }
 
+// Render Schedule
 function renderSchedule(matches) {
     const container = document.getElementById('view-upcoming');
     if (!container) return;
@@ -267,73 +532,6 @@ function renderLiveMatches(matches) {
             </div>
         </div>
     `).join('');
-}
-
-// --- ACTIONS & UTILS ---
-
-function setupRealtime() {
-    supabaseClient.channel('public:matches')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => fetchData())
-        .subscribe();
-}
-
-// Registration Modal
-window.openReg = function(id, name) {
-    document.getElementById('modal-sport-title').innerText = name;
-    document.getElementById('reg-modal').classList.remove('hidden');
-    const container = document.getElementById('reg-form-container');
-    
-    // Slide up animation
-    setTimeout(() => {
-        document.getElementById('reg-content').classList.remove('translate-y-full');
-    }, 10);
-
-    container.innerHTML = `
-        <div class="py-4">
-            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-xl mb-4 border border-gray-100 dark:border-white/5">
-                <p class="text-xs uppercase font-bold text-gray-400 mb-1">Participant</p>
-                <p class="font-bold text-lg dark:text-white">${currentUser.first_name} ${currentUser.last_name}</p>
-                <p class="text-sm text-gray-500">${currentUser.course || ''} ${currentUser.class_name || ''} • ${currentUser.student_id}</p>
-            </div>
-            
-            <p class="text-xs text-gray-500 mb-4 text-center">
-                By clicking confirm, you register for <strong>${name}</strong>.
-            </p>
-
-            <button onclick="submitReg('${id}')" class="w-full py-3 bg-brand-primary text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform">
-                Confirm Registration
-            </button>
-        </div>
-    `;
-}
-
-window.submitReg = async function(sportId) {
-    const { error } = await supabaseClient
-        .from('registrations')
-        .insert({
-            user_id: currentUser.id,
-            sport_id: sportId,
-            team_name: null, 
-            team_members: []
-        });
-
-    if(error) {
-        showToast(error.message, 'error');
-    } else {
-        showToast("Registered Successfully!", 'success');
-        closeRegModal();
-        confetti({ particleCount: 150, spread: 60, origin: { y: 0.7 } });
-        // Refresh history immediately
-        fetchUserRegistrations(currentUser.id);
-    }
-}
-
-window.closeRegModal = function() {
-    const content = document.getElementById('reg-content');
-    content.classList.add('translate-y-full');
-    setTimeout(() => {
-        document.getElementById('reg-modal').classList.add('hidden');
-    }, 300);
 }
 
 // Toggle Registration Views (New vs History)
@@ -485,13 +683,65 @@ if(themeBtn) {
     });
 }
 
+// Leaderboard Helper
+function processLeaderboardData(users) {
+    return users
+        .filter(u => u.total_points > 0)
+        .sort((a, b) => {
+            if (b.medals_gold !== a.medals_gold) return b.medals_gold - a.medals_gold;
+            if (b.medals_silver !== a.medals_silver) return b.medals_silver - a.medals_silver;
+            return b.medals_bronze - a.medals_bronze;
+        });
+}
+
+function renderLeaderboardWidget(users) {
+    const container = document.getElementById('leaderboard-container');
+    const viewAllBtn = document.getElementById('view-all-leaderboard');
+    if(!container) return;
+
+    if (users.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-300 dark:border-white/10 rounded-xl">No medals awarded yet.</div>';
+        viewAllBtn.classList.add('hidden');
+        return;
+    }
+
+    const top5 = users.slice(0, 5);
+    container.innerHTML = top5.map((u, index) => renderLeaderboardItem(u, index)).join('');
+    
+    if (users.length > 5) {
+        viewAllBtn.classList.remove('hidden');
+        viewAllBtn.innerText = `View Full Leaderboard (${users.length})`;
+    } else {
+        viewAllBtn.classList.add('hidden');
+    }
+    lucide.createIcons();
+}
+
+function renderLeaderboardItem(u, index) {
+    let rankColor = "text-gray-400";
+    if (index === 0) rankColor = "text-[#FFD700]";
+    if (index === 1) rankColor = "text-[#C0C0C0]";
+    if (index === 2) rankColor = "text-[#CD7F32]";
+
+    return `
+        <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-white/5 rounded-xl mb-2">
+             <div class="font-black ${rankColor} w-6 text-center text-lg">${index + 1}</div>
+             <img src="${u.avatar_url}" class="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100 dark:border-white/10">
+             <div class="flex-1">
+                 <h4 class="font-bold text-sm dark:text-white">${u.first_name} ${u.last_name}</h4>
+                 <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">${u.class_name || ''} ${u.course || ''}</p>
+             </div>
+             <div class="w-12 text-right font-black text-brand-primary text-sm">${u.total_points}</div>
+        </div>
+    `;
+}
+
 // Leaderboard Modal
 window.openLeaderboardModal = function() {
     const modal = document.getElementById('leaderboard-modal');
     const content = document.getElementById('leaderboard-content');
     const listContainer = document.getElementById('full-leaderboard-list');
     
-    // Render ALL users
     listContainer.innerHTML = allLeaderboardData.map((u, index) => renderLeaderboardItem(u, index)).join('');
     lucide.createIcons();
 
