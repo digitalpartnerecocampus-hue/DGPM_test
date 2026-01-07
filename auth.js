@@ -50,6 +50,13 @@ async function handleSignup(e) {
 
     const email = document.getElementById('reg-email').value;
     const password = document.getElementById('reg-pass').value;
+    const mobile = document.getElementById('reg-mobile').value;
+
+    // Basic Validation
+    if(mobile.length < 10) {
+        showToast("Please enter a valid 10-digit mobile number", 'error');
+        return;
+    }
 
     const metaData = {
         first_name: document.getElementById('reg-fname').value,
@@ -58,6 +65,7 @@ async function handleSignup(e) {
         course: document.getElementById('reg-course').value, 
         class_name: document.getElementById('reg-class').value,
         gender: document.getElementById('reg-gender').value,
+        mobile: mobile, // Added mobile to metadata
         role: 'student'
     };
 
