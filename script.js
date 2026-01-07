@@ -3,6 +3,7 @@ const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.s
 
 let currentUser = null; 
 let allLeaderboardData = []; 
+let allSports = []; // New: Store sports locally for filtering
 
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
@@ -62,7 +63,10 @@ async function fetchUserRegistrations(userId) {
 async function fetchData() {
     // 1. Fetch Sports
     const { data: sports } = await supabaseClient.from('sports').select('*').order('id');
-    if (sports) renderRegistrationCards(sports);
+    if (sports) {
+        allSports = sports; // Store for filtering
+        renderRegistrationCards(allSports);
+    }
 
     // 2. Fetch Matches
     const { data: matches } = await supabaseClient
@@ -92,7 +96,6 @@ function renderProfile(user) {
     };
 
     setTxt('profile-name', `${user.first_name || ''} ${user.last_name || ''}`);
-    // FIXED: "FY BAF" format
     setTxt('profile-details', `${user.class_name || ''} ${user.course || ''} • ${user.student_id || ''}`);
     
     setTxt('stat-gold', user.medals_gold || 0);
@@ -109,6 +112,11 @@ function renderRegistrationCards(sports) {
     const grid = document.getElementById('registration-grid');
     if(!grid) return;
 
+    if (sports.length === 0) {
+        grid.innerHTML = '<div class="col-span-2 text-center py-10 text-gray-500">No sports found.</div>';
+        return;
+    }
+
     grid.innerHTML = sports.map(sport => {
         const isClosed = sport.status === "Closed";
         return `
@@ -120,12 +128,41 @@ function renderRegistrationCards(sports) {
                     <span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${isClosed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">${sport.status}</span>
                 </div>
                 <h4 class="font-bold text-sm dark:text-gray-200">${sport.name}</h4>
-                <div class="mt-1 text-xs text-gray-500">${sport.type}</div>
+                <div class="mt-1 text-xs text-gray-500 flex justify-between items-center">
+                    <span>${sport.type}</span>
+                    ${sport.type === 'Team' ? `<span class="bg-blue-100 text-blue-600 px-1.5 rounded text-[9px] font-bold">TEAM</span>` : ''}
+                </div>
             </div>
         `;
     }).join('');
     lucide.createIcons();
 }
+
+// --- NEW FILTERING LOGIC ---
+
+// 1. Captain's Zone Filter (Team Sports Only)
+window.filterTeamSports = function() {
+    const teamSports = allSports.filter(s => s.type === 'Team');
+    renderRegistrationCards(teamSports);
+    showToast("Showing Team Sports Only", 'info');
+    
+    // Clear search bar visual
+    document.getElementById('sport-search').value = '';
+}
+
+// 2. Search Bar Filter
+window.filterSports = function() {
+    const input = document.getElementById('sport-search').value.toLowerCase();
+    
+    if (!input) {
+        renderRegistrationCards(allSports); // Show all if empty
+        return;
+    }
+
+    const filtered = allSports.filter(s => s.name.toLowerCase().includes(input));
+    renderRegistrationCards(filtered);
+}
+
 
 // --- NEW REGISTRATION & TEAM FLOW ---
 
@@ -173,7 +210,6 @@ window.openReg = async function(sportId, sportName, sportType) {
     loadTeamHub(container, sportId);
 }
 
-// Render Individual Registration Screen
 function renderIndividualRegistration(container, sportId, sportName, sportType) {
     container.innerHTML = `
         <div class="py-4">
@@ -195,7 +231,6 @@ function renderIndividualRegistration(container, sportId, sportName, sportType) 
     `;
 }
 
-// Handle Individual Registration Submit
 window.submitIndividualReg = async function(sportId, sportType) {
     const { error } = await supabaseClient.from('registrations').insert({
         user_id: currentUser.id,
@@ -207,9 +242,8 @@ window.submitIndividualReg = async function(sportId, sportType) {
     } else {
         showToast("Registered Successfully!", 'success');
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        fetchUserRegistrations(currentUser.id); // Refresh history
+        fetchUserRegistrations(currentUser.id);
         
-        // If Team Sport, reload modal to show Team Hub
         if (sportType === 'Team') {
             loadTeamHub(document.getElementById('reg-form-container'), sportId);
         } else {
@@ -221,17 +255,14 @@ window.submitIndividualReg = async function(sportId, sportType) {
 // --- TEAM HUB LOGIC ---
 
 async function loadTeamHub(container, sportId) {
-    // Check if user is already in a team for this sport
-    // We need to join team_members -> teams -> filter by sport_id
     const { data: myTeamMember } = await supabaseClient
         .from('team_members')
         .select('*, teams(*)')
         .eq('user_id', currentUser.id)
-        .eq('teams.sport_id', sportId) // Note: Deep filtering requires correct setup, fallback below
+        .eq('teams.sport_id', sportId) 
         .maybeSingle();
 
-    // Fetch user's team status strictly by fetching all teams they are in, then filtering in JS 
-    // (Simpler for now given Supabase JS limitations with deep filters on 'inner join')
+    // Fallback filter logic
     const { data: allMyTeams } = await supabaseClient
         .from('team_members')
         .select('*, teams(*)')
@@ -252,9 +283,7 @@ async function loadTeamHub(container, sportId) {
     }
 }
 
-// Option A: Join or Create
 async function renderJoinOrCreateOptions(container, sportId) {
-    // Fetch available teams
     const { data: teams } = await supabaseClient
         .from('teams')
         .select('*, users:captain_id(first_name, last_name)')
@@ -299,12 +328,10 @@ async function renderJoinOrCreateOptions(container, sportId) {
     `;
 }
 
-// Action: Create Team
 window.createNewTeam = async function(sportId) {
     const name = document.getElementById('new-team-name').value;
     if (!name) return showToast("Enter a team name", 'error');
 
-    // 1. Create Team
     const { data: team, error: teamErr } = await supabaseClient
         .from('teams')
         .insert({ sport_id: sportId, captain_id: currentUser.id, name: name })
@@ -313,7 +340,6 @@ window.createNewTeam = async function(sportId) {
 
     if (teamErr) return showToast(teamErr.message, 'error');
 
-    // 2. Add Captain as Member (Accepted)
     const { error: memErr } = await supabaseClient
         .from('team_members')
         .insert({ team_id: team.id, user_id: currentUser.id, role: 'Captain', status: 'Accepted' });
@@ -324,7 +350,6 @@ window.createNewTeam = async function(sportId) {
     loadTeamHub(document.getElementById('reg-form-container'), sportId);
 }
 
-// Action: Request Join
 window.requestJoinTeam = async function(teamId, sportId) {
     const { error } = await supabaseClient
         .from('team_members')
@@ -336,7 +361,6 @@ window.requestJoinTeam = async function(teamId, sportId) {
     loadTeamHub(document.getElementById('reg-form-container'), sportId);
 }
 
-// Render: Pending State
 function renderPendingRequestState(container, team) {
     container.innerHTML = `
         <div class="text-center py-10">
@@ -350,9 +374,7 @@ function renderPendingRequestState(container, team) {
     lucide.createIcons();
 }
 
-// Render: My Team Dashboard
 async function renderMyTeamDashboard(container, team, role) {
-    // Fetch members
     const { data: members } = await supabaseClient
         .from('team_members')
         .select('*, users(*)')
@@ -368,7 +390,6 @@ async function renderMyTeamDashboard(container, team, role) {
         </div>
     `;
 
-    // Captain Area: Requests
     if (role === 'Captain' && pendingMembers.length > 0) {
         html += `
             <div class="mb-6">
@@ -391,7 +412,6 @@ async function renderMyTeamDashboard(container, team, role) {
         `;
     }
 
-    // Squad List
     html += `
         <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">Squad (${acceptedMembers.length})</h5>
         <div class="space-y-2">
@@ -414,7 +434,6 @@ async function renderMyTeamDashboard(container, team, role) {
     lucide.createIcons();
 }
 
-// Action: Manage Request (Captain)
 window.manageRequest = async function(memberId, status) {
     const { error } = await supabaseClient
         .from('team_members')
@@ -424,11 +443,6 @@ window.manageRequest = async function(memberId, status) {
     if (error) return showToast(error.message, 'error');
     
     showToast(`Request ${status}`, 'success');
-    
-    // We rely on Realtime to update UI, but forcing a reload ensures sync
-    const modalContainer = document.getElementById('reg-form-container');
-    // To reload correct sport, we need the ID. 
-    // Optimization: Just close modal or refresh logic. For now, close modal.
     closeRegModal(); 
 }
 
@@ -443,16 +457,12 @@ window.closeRegModal = function() {
 }
 
 function setupRealtime() {
-    // Listen for Team Updates & Requests
     supabaseClient.channel('public:teams')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
-            // If modal is open, we could refresh it dynamically, but let's just toast
-            // showToast("Team Updated", 'info');
+             // Optional: Refresh modal if open
         })
         .subscribe();
 }
-
-// --- STANDARD FUNCTIONS (Profile, Tabs, Upload, History etc.) ---
 
 // Registration History
 function renderRegistrationHistory(registrations) {
@@ -534,7 +544,6 @@ function renderLiveMatches(matches) {
     `).join('');
 }
 
-// Toggle Registration Views (New vs History)
 window.toggleRegView = function(view) {
     const btnNew = document.getElementById('btn-reg-new');
     const btnHist = document.getElementById('btn-reg-history');
@@ -562,7 +571,6 @@ window.toggleRegView = function(view) {
     }
 }
 
-// Avatar Upload
 window.uploadAvatar = function() {
     document.getElementById('avatar-input').click();
 }
@@ -604,7 +612,6 @@ window.handleAvatarUpload = async function(input) {
     }
 }
 
-// Tab Switching
 window.switchTab = function(id) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     const target = document.getElementById('tab-' + id);
@@ -627,17 +634,6 @@ window.logout = async function() {
     window.location.href = 'login.html';
 }
 
-// Search Filter
-window.filterSports = function() {
-    const input = document.getElementById('sport-search').value.toLowerCase();
-    const cards = document.getElementById('registration-grid').children;
-    Array.from(cards).forEach(card => {
-        const title = card.querySelector('h4').textContent.toLowerCase();
-        card.style.display = title.includes(input) ? "block" : "none";
-    });
-}
-
-// Toast
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const content = document.getElementById('toast-content');
@@ -669,7 +665,6 @@ function showToast(message, type = 'info') {
     }, 3500);
 }
 
-// Theme Toggle
 const themeBtn = document.getElementById('theme-toggle');
 if(themeBtn) {
     themeBtn.addEventListener('click', () => {
@@ -683,7 +678,6 @@ if(themeBtn) {
     });
 }
 
-// Leaderboard Helper
 function processLeaderboardData(users) {
     return users
         .filter(u => u.total_points > 0)
@@ -736,7 +730,6 @@ function renderLeaderboardItem(u, index) {
     `;
 }
 
-// Leaderboard Modal
 window.openLeaderboardModal = function() {
     const modal = document.getElementById('leaderboard-modal');
     const content = document.getElementById('leaderboard-content');
