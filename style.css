@@ -17,15 +17,19 @@ body {
 
 /* --- UTILITIES --- */
 
-/* Hide Scrollbar for clean aesthetics */
+/* Hide Scrollbar for clean aesthetics (Mobile App Feel) */
 ::-webkit-scrollbar {
     width: 0px;
     background: transparent;
 }
 
 .custom-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 /* Safe Area for iPhone Home Bar */
@@ -103,7 +107,7 @@ body {
     border-left: 4px solid #10b981; /* Green */
 }
 
-/* Profile Header Overlay Pattern */
+/* Profile Header Overlay Pattern (Kept for legacy or other headers) */
 .bg-pattern-cubes {
     background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+');
     opacity: 0.3;
@@ -111,7 +115,7 @@ body {
 
 /* --- FORM & INPUT STYLES --- */
 
-/* Input Autofill Fix (Prevents yellow/white background ruining themes) */
+/* Input Autofill Fix (Prevents yellow/white background from browser autofill) */
 
 /* Light Mode Input Autofill */
 input:-webkit-autofill,
