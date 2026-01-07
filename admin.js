@@ -1,21 +1,23 @@
 // --- CONFIGURATION ---
+// Add all authorized emails here
 const ADMIN_EMAILS = [
     "admin@urja.com", 
-    "mohitforestudies@gmail.com", // Added based on your screenshots
+    "mohitforestudies@gmail.com", 
     "volunteer@urja.com"
 ];
 
 const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 let currentUser = null;
-let activeRealtimeChannel = null;
+let currentDataList = []; // Stores current table data for Export
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
     await checkAdminAuth();
     
-    // Load Dashboard by default
+    // Initial Loads
     loadDashboardStats();
+    loadSportsForFilter(); 
 });
 
 // --- 1. SECURITY & AUTH ---
@@ -45,13 +47,13 @@ async function adminLogout() {
 
 // --- 2. NAVIGATION ---
 window.switchSection = function(sectionId) {
-    // 1. Hide all sections
+    // Hide all sections
     document.querySelectorAll('.admin-section').forEach(el => el.classList.add('hidden'));
     
-    // 2. Show target
+    // Show target
     document.getElementById('section-' + sectionId).classList.remove('hidden');
     
-    // 3. Update Sidebar Active State
+    // Update Sidebar
     document.querySelectorAll('.nav-item').forEach(el => {
         el.classList.remove('active', 'bg-indigo-50', 'text-brand-primary');
         el.classList.add('text-gray-500');
@@ -62,10 +64,9 @@ window.switchSection = function(sectionId) {
         navBtn.classList.remove('text-gray-500');
     }
 
-    // 4. Lazy Load Data (Bandwidth Saver)
+    // Lazy Loads
     if (sectionId === 'sports') loadSportsManager();
     if (sectionId === 'matches') loadMatchScheduleTab(); 
-    // Data & Medals don't load until searched
 }
 
 window.toggleMobileMenu = function() {
@@ -135,7 +136,13 @@ window.toggleSport = async function(id, isOpen) {
     else showToast(`Sport ${newStatus}`, "success");
 }
 
-// --- 5. MATCH CENTER (VOLUNTEER MODE) ---
+async function loadSportsForFilter() {
+    const { data: sports } = await supabaseClient.from('sports').select('id, name');
+    const select = document.getElementById('filter-sport');
+    if(select) select.innerHTML = `<option value="">All Sports</option>` + sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+// --- 5. MATCH CENTER (FIXED LOGIC) ---
 
 // A. Schedule Tab
 window.toggleMatchTab = function(tab) {
@@ -147,17 +154,17 @@ window.toggleMatchTab = function(tab) {
     if (tab === 'schedule') {
         document.getElementById('view-match-schedule').classList.remove('hidden');
         document.getElementById('tab-match-schedule').className = "flex-1 py-3 text-sm font-bold text-brand-primary border-b-2 border-brand-primary bg-gray-50";
-        loadMatchScheduleTab(); // Refresh dropdowns
+        loadMatchScheduleTab(); 
     } else {
         document.getElementById('view-match-live').classList.remove('hidden');
         document.getElementById('tab-match-live').className = "flex-1 py-3 text-sm font-bold text-brand-primary border-b-2 border-brand-primary bg-gray-50";
-        fetchAdminMatches(); // Refresh live list
+        fetchAdminMatches(); 
     }
 }
 
 async function loadMatchScheduleTab() {
     // Populate Sports Dropdown
-    const { data: sports } = await supabaseClient.from('sports').select('id, name');
+    const { data: sports } = await supabaseClient.from('sports').select('id, name').order('name');
     const select = document.getElementById('match-sport-select');
     select.innerHTML = `<option value="">Select Sport...</option>` + 
         sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -166,30 +173,45 @@ async function loadMatchScheduleTab() {
 window.loadTeamsForMatch = async function(sportId) {
     if(!sportId) return;
     
-    // Fetch Teams for this sport
-    const { data: teams } = await supabaseClient.from('teams').select('id, name').eq('sport_id', sportId);
+    // 1. Determine Sport Type
+    const { data: sport } = await supabaseClient.from('sports').select('type').eq('id', sportId).single();
     
-    const opts = `<option value="">Select Team...</option>` + 
-                 teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-                 
-    document.getElementById('match-team-a').innerHTML = opts;
-    document.getElementById('match-team-b').innerHTML = opts;
+    let options = `<option value="">Select Participant...</option>`;
+    
+    if (sport.type === 'Solo') {
+        // FETCH INDIVIDUAL REGISTERED USERS
+        const { data: regs } = await supabaseClient
+            .from('registrations')
+            .select('user_id, users(first_name, last_name, student_id)')
+            .eq('sport_id', sportId);
+            
+        options += regs.map(r => `<option value="${r.users.first_name} ${r.users.last_name}">${r.users.first_name} ${r.users.last_name} (${r.users.student_id})</option>`).join('');
+        
+    } else {
+        // FETCH TEAMS
+        const { data: teams } = await supabaseClient.from('teams').select('id, name').eq('sport_id', sportId);
+        options += teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+    }
+    
+    document.getElementById('match-team-a').innerHTML = options;
+    document.getElementById('match-team-b').innerHTML = options;
 }
 
 window.createMatch = async function() {
     const sportId = document.getElementById('match-sport-select').value;
-    const teamAId = document.getElementById('match-team-a').value;
-    const teamBId = document.getElementById('match-team-b').value;
+    const teamA = document.getElementById('match-team-a').value; // This is the Name/Value
+    const teamB = document.getElementById('match-team-b').value;
     const time = document.getElementById('match-time').value;
     const loc = document.getElementById('match-location').value;
 
-    // Get Team Names for easier display later
-    const teamA = document.getElementById('match-team-a').options[document.getElementById('match-team-a').selectedIndex].text;
-    const teamB = document.getElementById('match-team-b').options[document.getElementById('match-team-b').selectedIndex].text;
+    if(!sportId || !teamA || !teamB || !time) {
+        showToast("Please fill all fields", "error");
+        return;
+    }
 
     const { error } = await supabaseClient.from('matches').insert({
         sport_id: sportId,
-        team1_name: teamA, // Storing names for easier display
+        team1_name: teamA, 
         team2_name: teamB,
         start_time: time,
         location: loc,
@@ -267,39 +289,132 @@ window.saveScore = async function(id) {
     else showToast("Score Updated", "success");
 }
 
-// --- 6. DATA MANAGER (SEARCH ONLY) ---
-window.searchUsers = async function() {
-    const query = document.getElementById('data-search').value;
+// --- 6. DATA MANAGER & EXPORTS ---
+
+window.searchData = async function() {
+    const query = document.getElementById('data-search').value.toLowerCase();
+    const sportId = document.getElementById('filter-sport').value;
+    const status = document.getElementById('filter-status').value;
     const tbody = document.getElementById('data-table-body');
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Loading data...</td></tr>';
+
+    // Construct Query
+    let dbQuery = supabaseClient
+        .from('registrations')
+        .select(`
+            id, 
+            player_status, 
+            created_at,
+            users!inner(first_name, last_name, student_id, class_name), 
+            sports!inner(id, name, type)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(200); // Efficient limit
+
+    if (sportId) dbQuery = dbQuery.eq('sport_id', sportId);
+    if (status) dbQuery = dbQuery.eq('player_status', status);
+
+    const { data: regs, error } = await dbQuery;
     
-    if(!query || query.length < 2) {
-        showToast("Enter at least 2 characters", "info");
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-red-500">${error.message}</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Searching...</td></tr>';
+    // Client-side text filter (since ILIKE on joins is complex via API)
+    const filtered = regs.filter(r => {
+        const text = `${r.users.first_name} ${r.users.last_name} ${r.users.student_id}`.toLowerCase();
+        return text.includes(query);
+    });
 
-    const { data: users } = await supabaseClient
-        .from('users')
-        .select('id, first_name, last_name, student_id, class_name, email')
-        .ilike('first_name', `%${query}%`)
-        .limit(10); // Low Egress Limit
+    currentDataList = filtered; // Save for export
 
-    if(!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">No users found.</td></tr>';
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No records match your filters.</td></tr>';
         return;
     }
 
-    tbody.innerHTML = users.map(u => `
-        <tr class="border-b border-gray-100">
-            <td class="px-4 py-3 font-bold text-gray-800">${u.first_name} ${u.last_name}</td>
-            <td class="px-4 py-3">${u.class_name} • ${u.student_id}</td>
-            <td class="px-4 py-3 text-xs text-gray-500">${u.email}</td>
+    tbody.innerHTML = filtered.map(r => `
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
             <td class="px-4 py-3">
-                <button class="text-brand-primary text-xs font-bold hover:underline">View Profile</button>
+                <p class="font-bold text-gray-800">${r.users.first_name} ${r.users.last_name}</p>
+                <p class="text-xs text-gray-500">${r.users.student_id} • ${r.users.class_name}</p>
+            </td>
+            <td class="px-4 py-3 text-sm">${r.sports.name}</td>
+            <td class="px-4 py-3 text-xs uppercase font-bold text-gray-400">${r.sports.type}</td>
+            <td class="px-4 py-3">
+                <select onchange="updateStatus('${r.id}', this.value)" class="text-xs border rounded p-1 font-medium ${getStatusColor(r.player_status)}">
+                    <option value="Registered" ${r.player_status==='Registered'?'selected':''}>Registered</option>
+                    <option value="Scheduled" ${r.player_status==='Scheduled'?'selected':''}>Scheduled</option>
+                    <option value="Playing" ${r.player_status==='Playing'?'selected':''}>Playing</option>
+                    <option value="Played" ${r.player_status==='Played'?'selected':''}>Played</option>
+                    <option value="Won" ${r.player_status==='Won'?'selected':''}>Won</option>
+                </select>
+            </td>
+            <td class="px-4 py-3">
+                <button class="text-brand-primary text-xs font-bold hover:underline">Edit</button>
             </td>
         </tr>
     `).join('');
+}
+
+window.updateStatus = async function(regId, newStatus) {
+    const { error } = await supabaseClient.from('registrations').update({ player_status: newStatus }).eq('id', regId);
+    if(error) showToast("Update Failed", "error");
+    else showToast("Status Updated", "success");
+}
+
+function getStatusColor(status) {
+    if (status === 'Playing') return 'bg-blue-100 text-blue-700';
+    if (status === 'Won') return 'bg-yellow-100 text-yellow-700';
+    if (status === 'Scheduled') return 'bg-purple-100 text-purple-700';
+    return 'bg-gray-100 text-gray-700';
+}
+
+// --- EXPORT LOGIC ---
+
+window.exportData = function(type) {
+    if (currentDataList.length === 0) {
+        showToast("No data to export. Search first.", "error");
+        return;
+    }
+
+    // Flatten Data
+    const rows = currentDataList.map(r => ({
+        "Student ID": r.users.student_id,
+        "Name": `${r.users.first_name} ${r.users.last_name}`,
+        "Class": r.users.class_name,
+        "Sport": r.sports.name,
+        "Type": r.sports.type,
+        "Status": r.player_status || "Registered"
+    }));
+
+    if (type === 'excel') {
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Registrations");
+        XLSX.writeFile(wb, "URJA_Export.xlsx");
+        showToast("Excel Downloaded", "success");
+    } 
+    else if (type === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text("URJA 2026 Registration Report", 14, 15);
+        
+        doc.setFontSize(10);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+
+        doc.autoTable({
+            head: [["ID", "Name", "Class", "Sport", "Type", "Status"]],
+            body: rows.map(Object.values),
+            startY: 28
+        });
+        doc.save("URJA_Report.pdf");
+        showToast("PDF Downloaded", "success");
+    }
 }
 
 // --- 7. MEDAL ALLOCATOR ---
@@ -356,7 +471,6 @@ window.awardMedal = async function(type) {
         };
     }
 
-    // Update DB
     const { data, error } = await supabaseClient
         .from('users')
         .update(updateObj)
@@ -368,11 +482,9 @@ window.awardMedal = async function(type) {
         showToast(error.message, "error");
     } else {
         showToast(`${type} Medal Awarded! (+${pointsToAdd} pts)`, "success");
-        // Update local object so next click adds correctly
         selectedMedalUser = data; 
         
-        // Also update leaderboard table if it exists (Optional redundancy)
-        // Ideally, leaderboard should view 'users', but if you have a separate table:
+        // Sync with Leaderboard table
         await supabaseClient.from('leaderboard').upsert({ 
             user_id: data.id, 
             first_name: data.first_name,
