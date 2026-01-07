@@ -95,7 +95,6 @@ function updateProfileUI() {
     if(detailsEl) detailsEl.innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
     
     if(!currentUser.mobile) {
-        // We will prompt for this if they try to register, but showing a toast is good practice
         showToast("⚠️ Add Mobile Number in Settings", "error");
     }
 }
@@ -108,6 +107,7 @@ window.logout = async function() {
 async function fetchMyRegistrations() {
     const { data } = await supabaseClient.from('registrations').select('sport_id').eq('user_id', currentUser.id);
     if(data) {
+        // Store IDs. If your DB uses numbers, these are numbers.
         myRegistrations = data.map(r => r.sport_id);
     }
 }
@@ -213,7 +213,7 @@ async function loadProfileGames() {
     lucide.createIcons();
 }
 
-// --- 5. REGISTRATION VIEW (Redesigned) ---
+// --- 5. REGISTRATION VIEW ---
 
 window.toggleRegisterView = function(view) {
     const btnNew = document.getElementById('btn-reg-new');
@@ -249,19 +249,15 @@ async function loadSportsDirectory() {
 
 function renderSportsList(list) {
     const container = document.getElementById('sports-list');
-    
-    // Ensure we have latest registrations to mark cards
     const registeredIDs = myRegistrations; 
 
     container.innerHTML = list.map(s => {
         const isRegistered = registeredIDs.includes(s.id);
         
-        // Card Styling based on logic
         const cardClass = isRegistered 
             ? "opacity-60 grayscale pointer-events-none cursor-not-allowed" 
             : "active:scale-95 cursor-pointer hover:shadow-md";
             
-        // Badge Logic
         const badgeColor = isRegistered 
             ? "text-gray-400 bg-gray-100 dark:bg-gray-700" 
             : "text-green-500 bg-green-50 dark:text-green-400 dark:bg-green-900/20";
@@ -271,19 +267,16 @@ function renderSportsList(list) {
 
         return `
         <div ${clickAction} class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative flex flex-col justify-between h-32 transition-all ${cardClass}">
-            
             <div class="flex justify-between items-start">
                 <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/50 rounded-xl text-brand-primary dark:text-white">
                     <i data-lucide="${s.icon || 'trophy'}" class="w-6 h-6"></i>
                 </div>
                 <span class="${badgeColor} text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">${badgeText}</span>
             </div>
-
             <div class="mt-2">
                 <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">${s.name}</h4>
                 <p class="text-xs text-gray-400 font-medium mt-0.5">${s.type}</p>
             </div>
-            
         </div>`;
     }).join('');
     lucide.createIcons();
@@ -341,7 +334,6 @@ window.filterSports = function() {
 }
 
 // --- 6. TEAMS MODULE ---
-// (Logic retained, standard implementation)
 
 window.toggleTeamView = function(view) {
     document.getElementById('team-marketplace').classList.add('hidden');
@@ -356,11 +348,36 @@ window.toggleTeamView = function(view) {
     if(view === 'marketplace') {
         document.getElementById('team-marketplace').classList.remove('hidden');
         btnMarket.className = "flex-1 py-2 rounded shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
-        window.loadTeamMarketplace();
+        
+        // NEW: Populate filter and load
+        loadTeamSportsFilter().then(() => {
+            window.loadTeamMarketplace();
+        });
+
     } else {
         document.getElementById('team-locker').classList.remove('hidden');
         btnLocker.className = "flex-1 py-2 rounded shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
         window.loadTeamLocker();
+    }
+}
+
+// NEW: Function to populate the "All Sports" dropdown in Marketplace
+async function loadTeamSportsFilter() {
+    const select = document.getElementById('team-sport-filter');
+    if (!select || select.children.length > 1) return; // Already loaded
+
+    // Get all sports that are Team based
+    const { data: sports } = await supabaseClient.from('sports').select('id, name').eq('type', 'Team').eq('status', 'Open');
+    
+    if (sports && sports.length > 0) {
+        // Keep "All Sports" option
+        select.innerHTML = `<option value="all">All Sports</option>`;
+        sports.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.innerText = s.name;
+            select.appendChild(opt);
+        });
     }
 }
 
@@ -369,13 +386,28 @@ window.loadTeamMarketplace = async function() {
     const container = document.getElementById('marketplace-list');
     container.innerHTML = '<p class="text-center text-gray-400 py-10">Scanning available squads...</p>';
 
-    const { data: teams } = await supabaseClient
+    // NEW: Check Filter Value
+    const filterVal = document.getElementById('team-sport-filter').value;
+
+    let query = supabaseClient
         .from('teams')
         .select(`*, sports(name), captain:users!captain_id(first_name, gender)`)
         .eq('status', 'Open')
         .order('created_at', { ascending: false });
 
-    // Filter by Gender
+    // NEW: Apply Filter to Query
+    if(filterVal !== 'all') {
+        query = query.eq('sport_id', filterVal);
+    }
+
+    const { data: teams } = await query;
+
+    if (!teams) {
+         container.innerHTML = '<p class="text-center text-gray-400 py-10">Error loading teams.</p>';
+         return;
+    }
+
+    // Filter by Gender (Team must match Captain's gender, User must match Captain's gender)
     const validTeams = teams.filter(t => t.captain?.gender === currentUser.gender);
 
     if(!validTeams.length) {
@@ -608,8 +640,16 @@ window.createTeam = async function() {
     const name = document.getElementById('new-team-name').value;
     const sportId = document.getElementById('new-team-sport').value;
     
-    if(!name) return showToast("Enter Team Name");
-    if(!myRegistrations.includes(sportId)) return showToast("⚠️ Register for this sport first!", "error");
+    if(!name) return showToast("Enter Team Name", "error");
+    
+    // FIX: Robust check for registration (Handling String vs Number Types)
+    // Convert both to String to ensure comparison works
+    const isRegistered = myRegistrations.some(regId => String(regId) === String(sportId));
+    
+    if(!isRegistered) {
+         // Show error similar to screenshot
+         return showToast("⚠️ Register for this sport first!", "error");
+    }
     
     // Check existing team
     const { data: existing } = await supabaseClient.from('team_members')
@@ -623,10 +663,10 @@ window.createTeam = async function() {
         .insert({ name: name, sport_id: sportId, captain_id: currentUser.id, status: 'Open' })
         .select().single();
 
-    if(error) showToast(error.message);
+    if(error) showToast(error.message, "error");
     else {
         await supabaseClient.from('team_members').insert({ team_id: team.id, user_id: currentUser.id, status: 'Accepted' });
-        showToast("Team Created!");
+        showToast("Team Created!", "success");
         window.closeModal('modal-create-team');
         window.toggleTeamView('locker');
     }
@@ -642,9 +682,19 @@ window.closeModal = id => document.getElementById(id).classList.add('hidden');
 
 window.showToast = function(msg, type='info') {
     const t = document.getElementById('toast-container');
-    document.getElementById('toast-msg').innerText = msg;
-    const icon = document.getElementById('toast-icon');
-    icon.innerHTML = type === 'error' ? '⚠️' : '✅';
+    const msgEl = document.getElementById('toast-msg');
+    const iconEl = document.getElementById('toast-icon');
+    
+    msgEl.innerText = msg;
+    
+    // Styling based on screenshot (Black toast, warning icon)
+    if (type === 'error') {
+        iconEl.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-500"></i>';
+    } else {
+        iconEl.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 text-green-500"></i>';
+    }
+    
+    lucide.createIcons();
     
     // Use the specific CSS class to animate in
     t.classList.add('toast-visible');
@@ -654,44 +704,34 @@ window.showToast = function(msg, type='info') {
     }, 3000);
 }
 
-// --- REGISTRATION MODAL LOGIC (UPDATED) ---
-
+// --- REGISTRATION MODAL LOGIC ---
 window.openRegistrationModal = async function(id) {
-    // 1. Fetch Sport Data
     const { data: sport } = await supabaseClient.from('sports').select('*').eq('id', id).single();
     selectedSportForReg = sport;
     
-    // 2. Populate Modal Text (Matching New UI)
     document.getElementById('reg-modal-sport-name').innerText = sport.name;
     document.getElementById('reg-modal-sport-name-span').innerText = sport.name;
     
-    // 3. Populate User Data (Participant Card)
     document.getElementById('reg-modal-user-name').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
     document.getElementById('reg-modal-user-details').innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
 
-    // 4. Handle Mobile Logic (Background check)
     const mobInput = document.getElementById('reg-mobile');
     if(currentUser.mobile) {
         mobInput.value = currentUser.mobile; 
     } else {
-        // If user has no mobile, we might need to prompt them, 
-        // but to keep the UI clean as per screenshot, we'll try to handle it gracefully or use a prompt if it fails.
         mobInput.value = ''; 
     }
     
-    // 5. Show Modal
     document.getElementById('modal-register').classList.remove('hidden');
 }
 
 window.confirmRegistration = async function() {
-    // Check Mobile Requirement (Backend usually needs it)
     if(!currentUser.mobile) {
         const phone = prompt("⚠️ Mobile number is required for coordination. Please enter yours:");
         if(!phone || phone.length < 10) return showToast("Invalid Mobile Number", "error");
         
-        // Update user profile immediately
         await supabaseClient.from('users').update({mobile: phone}).eq('id', currentUser.id);
-        currentUser.mobile = phone; // Update local state
+        currentUser.mobile = phone; 
     }
 
     const { error } = await supabaseClient.from('registrations').insert({
