@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial Loads
     loadDashboardStats();
     loadSportsForFilter(); 
+    
+    // Event Listeners for Match Filtering
+    document.getElementById('match-team-a').addEventListener('change', filterOpponentsByGender);
 });
 
 // --- 1. SECURITY & AUTH ---
@@ -136,7 +139,7 @@ async function loadSportsForFilter() {
     if(select) select.innerHTML = `<option value="">All Sports</option>` + sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
-// --- 5. MATCH CENTER (VALIDATION & SCHEDULING) ---
+// --- 5. MATCH CENTER (VALIDATION & GENDER LOGIC) ---
 
 window.toggleMatchTab = function(tab) {
     document.getElementById('view-match-schedule').classList.add('hidden');
@@ -162,7 +165,7 @@ async function loadMatchScheduleTab() {
         sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
-// LOADS PLAYERS (SOLO) OR TEAMS (TEAM)
+// LOADS PLAYERS (SOLO) OR TEAMS (TEAM) WITH GENDER DATA
 window.loadTeamsForMatch = async function(sportId) {
     if(!sportId) return;
     
@@ -172,38 +175,80 @@ window.loadTeamsForMatch = async function(sportId) {
     let options = `<option value="">Select Participant...</option>`;
     
     if (sport.type === 'Solo') {
-        // Fetch Individual Users
+        // Fetch Individual Users with Gender
         const { data: regs } = await supabaseClient
             .from('registrations')
             .select(`
                 user_id, 
-                users (first_name, last_name, student_id)
+                users (first_name, last_name, student_id, gender)
             `)
             .eq('sport_id', sportId);
             
         if(regs) {
             options += regs.map(r => {
                 const name = `${r.users.first_name} ${r.users.last_name}`;
-                // Using Name as value for Solo, but for Team we use ID for validation later
-                return `<option value="${name}">${name} (${r.users.student_id})</option>`;
+                // Data attributes store gender for filtering
+                return `<option value="${name}" data-gender="${r.users.gender}">${name} (${r.users.student_id}) - ${r.users.gender || 'N/A'}</option>`;
             }).join('');
         }
         
     } else {
         // Fetch Teams (Value = Team ID for validation, Text = Team Name)
+        // Join with Captain to get Gender
         const { data: teams } = await supabaseClient
             .from('teams')
-            .select('id, name, status')
+            .select(`
+                id, name, status,
+                captain:users!captain_id(gender)
+            `)
             .eq('sport_id', sportId);
             
         if(teams) {
-            options += teams.map(t => `<option value="${t.id}" data-status="${t.status}" data-name="${t.name}">${t.name} (${t.status})</option>`).join('');
+            options += teams.map(t => {
+                const gender = t.captain ? t.captain.gender : 'N/A';
+                return `<option value="${t.id}" data-status="${t.status}" data-name="${t.name}" data-gender="${gender}">${t.name} (${t.status}) - ${gender}</option>`;
+            }).join('');
         }
     }
     
-    document.getElementById('match-team-a').innerHTML = options;
-    document.getElementById('match-team-b').innerHTML = options;
+    // Populate Both Dropdowns
+    const selectA = document.getElementById('match-team-a');
+    const selectB = document.getElementById('match-team-b');
+    
+    selectA.innerHTML = options;
+    selectB.innerHTML = options; // Initially same options
 }
+
+// FILTER LOGIC: Updates Side B when Side A changes
+function filterOpponentsByGender() {
+    const selectA = document.getElementById('match-team-a');
+    const selectB = document.getElementById('match-team-b');
+    
+    const selectedOptionA = selectA.options[selectA.selectedIndex];
+    const genderA = selectedOptionA.getAttribute('data-gender');
+    
+    // Reset Side B
+    const allOptionsB = Array.from(selectB.options);
+    
+    allOptionsB.forEach(opt => {
+        if(opt.value === "") return; // Skip placeholder
+        
+        const genderB = opt.getAttribute('data-gender');
+        
+        // Logic: Show only if Gender Matches
+        if (genderA && genderB && genderA !== genderB) {
+            opt.style.display = "none";
+            opt.disabled = true;
+        } else {
+            opt.style.display = "block";
+            opt.disabled = false;
+        }
+    });
+    
+    // Reset B selection if it's now invalid
+    selectB.value = "";
+}
+
 
 window.createMatch = async function() {
     const sportId = document.getElementById('match-sport-select').value;
