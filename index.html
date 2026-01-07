@@ -156,23 +156,22 @@
             </div>
         </div>
 
-        <div id="view-profile" class="view-section hidden animate-fade-in w-full -mx-4">
+        <div id="view-profile" class="view-section hidden animate-fade-in w-full">
             
-            <div class="relative mb-16">
-                <div class="h-40 w-full bg-gradient-to-r from-blue-600 to-purple-600 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-pattern-cubes opacity-20"></div>
-                     <button onclick="window.openSettingsModal()" class="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors">
+            <div class="relative mb-16 rounded-b-3xl overflow-hidden shadow-sm">
+                <div class="h-48 w-full relative">
+                    <img src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=2070&auto=format&fit=crop" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>
+                    
+                    <button onclick="window.openSettingsModal()" class="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-colors border border-white/20">
                         <i data-lucide="settings" class="w-5 h-5"></i>
                     </button>
                 </div>
 
                 <div class="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
                     <div class="relative">
-                        <div class="w-24 h-24 rounded-full border-[4px] border-white dark:border-gray-900 overflow-hidden bg-white shadow-lg transition-colors">
-                            <img id="profile-img" src="https://via.placeholder.com/150" class="w-full h-full object-cover">
-                        </div>
-                        <div class="absolute bottom-0 right-0 bg-brand-primary p-1.5 rounded-full border-2 border-white dark:border-gray-900 text-white transition-colors">
-                             <i data-lucide="camera" class="w-3 h-3"></i>
+                        <div class="w-24 h-24 rounded-full border-[4px] border-white dark:border-gray-900 overflow-hidden bg-white shadow-xl transition-colors">
+                            <img id="profile-img" src="https://t4.ftcdn.net/jpg/05/89/93/27/360_F_589932782_vQAEAZhHnq1QCGu5ikwrYaQD0Mmurm0N.jpg" class="w-full h-full object-cover">
                         </div>
                     </div>
                 </div>
@@ -182,7 +181,7 @@
                 <h2 id="profile-name" class="text-2xl font-black text-gray-900 dark:text-white mb-1">Student Name</h2>
                 <p id="profile-details" class="text-gray-500 dark:text-gray-400 font-bold text-sm uppercase tracking-wide mb-8">Class • ID</p>
                 
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex justify-between items-center mb-8 mx-4 transition-colors">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex justify-between items-center mb-8 mx-0 transition-colors">
                     <div class="flex-1 text-center border-r border-gray-100 dark:border-gray-700">
                         <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Gold</p>
                         <p class="text-2xl font-black text-yellow-500">0</p>
@@ -197,7 +196,7 @@
                     </div>
                 </div>
 
-                <div class="text-left px-4">
+                <div class="text-left px-0">
                     <div class="flex items-center gap-2 mb-4">
                         <i data-lucide="layout-list" class="w-5 h-5 text-brand-primary"></i>
                         <h3 class="font-bold text-lg">All Registered Games</h3>
@@ -208,7 +207,7 @@
                     </div>
                 </div>
 
-                <div class="px-4 mt-8 mb-4">
+                <div class="px-0 mt-8 mb-4">
                     <button onclick="window.logout()" class="w-full py-4 border border-red-200 dark:border-red-900 text-red-500 font-bold rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors bg-white dark:bg-gray-800 shadow-sm">Logout</button>
                 </div>
             </div>
@@ -327,23 +326,61 @@
         </div>
     </div>
 
-    <div id="modal-settings" class="fixed inset-0 z-[60] bg-black/50 hidden flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-slide-up transition-colors">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold dark:text-white">Edit Profile</h3>
-                <button onclick="window.closeModal('modal-settings')"><i data-lucide="x" class="w-5 h-5 text-gray-400"></i></button>
+    <div id="modal-settings" class="fixed inset-0 z-[60] bg-black/60 hidden flex items-end justify-center backdrop-blur-sm sm:items-center">
+        <div class="absolute inset-0" onclick="window.closeModal('modal-settings')"></div>
+        <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up transition-colors relative z-10">
+            
+            <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4"></div>
+            
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold dark:text-white">Edit Profile</h3>
             </div>
-            <div class="space-y-3">
+
+            <div class="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-1">
+                
                 <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="edit-fname" placeholder="First Name" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white">
-                    <input type="text" id="edit-lname" placeholder="Last Name" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">First Name</label>
+                        <input type="text" id="edit-fname" placeholder="First Name" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white focus:border-brand-primary outline-none transition-colors">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Last Name</label>
+                        <input type="text" id="edit-lname" placeholder="Last Name" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white focus:border-brand-primary outline-none transition-colors">
+                    </div>
                 </div>
-                <input type="tel" id="edit-mobile" placeholder="Mobile" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white">
-                <div class="grid grid-cols-2 gap-3">
-                    <select id="edit-class" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm dark:text-white"><option>FY</option><option>SY</option><option>TY</option></select>
-                    <input type="text" id="edit-sid" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-500 dark:text-gray-300" readonly>
+
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Email ID</label>
+                    <input type="email" id="edit-email" readonly class="w-full p-3 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-xl text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed select-none">
                 </div>
-                <button onclick="window.updateProfile()" class="w-full py-3 bg-black dark:bg-brand-primary text-white font-bold rounded-xl mt-2">Save Changes</button>
+
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Mobile Number</label>
+                    <input type="tel" id="edit-mobile" placeholder="Mobile" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white focus:border-brand-primary outline-none transition-colors">
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Class</label>
+                        <select id="edit-class" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white outline-none">
+                            <option>FY</option><option>SY</option><option>TY</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Student ID</label>
+                        <input type="text" id="edit-sid" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white focus:border-brand-primary outline-none">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Gender</label>
+                    <select id="edit-gender" class="w-full p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl text-sm font-bold dark:text-white outline-none">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+
+                <button onclick="window.updateProfile()" class="w-full py-3.5 bg-black dark:bg-brand-primary text-white font-bold rounded-xl shadow-lg mt-2 active:scale-95 transition-transform">Save Changes</button>
             </div>
         </div>
     </div>
