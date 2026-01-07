@@ -7,9 +7,11 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="config.js"></script>
 
     <script>
@@ -19,220 +21,133 @@
                 extend: {
                     fontFamily: { sans: ['Outfit', 'sans-serif'] },
                     colors: {
-                        brand: { primary: '#6366F1', secondary: '#EC4899', dark: '#1e1b4b' }
+                        light: { bg: '#F3F4F6', card: '#FFFFFF', text: '#1F2937' },
+                        dark: { bg: '#0B0B15', card: '#151522', text: '#F9FAFB' },
+                        brand: { primary: '#6366F1', secondary: '#EC4899', accent: '#F59E0B', success: '#10B981' }
                     }
                 }
             }
         }
     </script>
-    <style>
-        body { font-family: 'Outfit', sans-serif; }
-        .glass {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 text-gray-900 h-screen flex items-center justify-center p-4 relative overflow-hidden">
+<body class="bg-gray-100 dark:bg-dark-bg text-gray-900 dark:text-white antialiased selection:bg-brand-primary selection:text-white min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1517649763962-0c623066013b?w=1600&q=80')] bg-cover bg-center">
 
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-primary/20 rounded-full blur-[100px]"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-secondary/20 rounded-full blur-[100px]"></div>
-    </div>
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm z-0"></div>
 
-    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden z-10 relative">
+    <div class="bg-white dark:bg-[#151522] w-full max-w-md rounded-3xl p-8 shadow-2xl border border-white/10 relative z-10 flex flex-col max-h-[90vh]">
         
-        <div class="bg-gradient-to-r from-brand-primary to-indigo-600 p-8 text-center text-white">
-            <h1 class="text-3xl font-black italic tracking-tighter mb-2">URJA 2026</h1>
-            <p class="text-white/80 text-sm font-medium">EcoCampus Sports Meet</p>
+        <div id="auth-loading" class="hidden absolute inset-0 bg-white/90 dark:bg-[#151522]/90 z-20 flex flex-col items-center justify-center rounded-3xl">
+            <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-primary mb-2"></div>
+            <p class="text-sm font-bold animate-pulse text-brand-primary">Processing...</p>
         </div>
 
-        <div class="flex p-2 m-4 bg-gray-100 rounded-xl">
-            <button onclick="toggleForm('login')" id="tab-login" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow text-brand-primary transition-all">Login</button>
-            <button onclick="toggleForm('signup')" id="tab-signup" class="flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 transition-all">Sign Up</button>
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-black italic tracking-tighter text-gray-900 dark:text-white">URJA <span class="text-brand-primary">2026</span></h1>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">Annual Sports Meet</p>
         </div>
 
-        <div id="form-login" class="p-6 space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+        <div id="view-login" class="auth-view space-y-4 overflow-y-auto no-scrollbar">
+            <h3 class="text-lg font-bold border-l-4 border-brand-primary pl-3">Student Login</h3>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Email</label>
+                    <input type="email" id="login-email" placeholder="Enter your email" required class="input-field">
+                </div>
                 <div class="relative">
-                    <i data-lucide="mail" class="absolute left-3 top-3 w-5 h-5 text-gray-400"></i>
-                    <input type="email" id="login-email" placeholder="Enter your email" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all">
+                    <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Password</label>
+                    <input type="password" id="login-pass" placeholder="Enter your password" required class="input-field">
+                    <button type="button" onclick="togglePass('login-pass')" class="absolute right-3 top-8 text-gray-400 hover:text-brand-primary transition"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 </div>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                <div class="relative">
-                    <i data-lucide="lock" class="absolute left-3 top-3 w-5 h-5 text-gray-400"></i>
-                    <input type="password" id="login-password" placeholder="••••••••" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all">
+                
+                <div class="flex justify-end">
+                    <button type="button" onclick="switchAuthView('forgot')" class="text-xs text-brand-primary font-bold hover:underline">Forgot Password?</button>
                 </div>
+
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-brand-primary to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-brand-primary/30 active:scale-95 transition-transform transform hover:-translate-y-0.5">Login</button>
+            </form>
+            
+            <div class="pt-4 border-t border-gray-100 dark:border-white/5 text-center">
+                <p class="text-xs text-gray-500">Don't have an account?</p>
+                <button onclick="switchAuthView('signup')" class="text-sm font-bold text-brand-primary hover:underline mt-1">Create Account</button>
             </div>
-            <button onclick="login()" class="w-full py-3 bg-brand-primary text-white font-bold rounded-xl shadow-lg shadow-brand-primary/30 active:scale-95 transition-transform">
-                Sign In
-            </button>
-            <p class="text-center text-xs text-gray-400 mt-4">Forgot password? Contact Admin.</p>
         </div>
 
-        <div id="form-signup" class="hidden p-6 space-y-3 h-[400px] overflow-y-auto custom-scrollbar">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">First Name</label>
-                    <input type="text" id="signup-fname" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
+        <div id="view-signup" class="auth-view hidden space-y-3 overflow-y-auto no-scrollbar">
+            <h3 class="text-lg font-bold border-l-4 border-brand-secondary pl-3">New Registration</h3>
+            <p class="text-xs text-gray-500 mb-2">Please fill in your correct details for the ID Card.</p>
+            
+            <form onsubmit="handleSignup(event)" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <input type="text" id="reg-fname" placeholder="First Name" required class="input-field">
+                    </div>
+                    <div>
+                        <input type="text" id="reg-lname" placeholder="Last Name" required class="input-field">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Last Name</label>
-                    <input type="text" id="signup-lname" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="reg-sid" placeholder="Student ID" required class="input-field">
+                    <input type="text" id="reg-course" placeholder="Course (e.g. BMS)" required class="input-field">
                 </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Gender</label>
-                    <select id="signup-gender" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="reg-class" required class="input-field cursor-pointer">
+                        <option value="" disabled selected>Select Class</option>
+                        <option value="FY">FY</option>
+                        <option value="SY">SY</option>
+                        <option value="TY">TY</option>
+                    </select>
+                    <select id="reg-gender" required class="input-field cursor-pointer">
+                        <option value="" disabled selected>Gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
+                        <option value="Other">Other</option>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mobile No</label>
-                    <input type="tel" id="signup-mobile" placeholder="9876543210" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
+
+                <input type="email" id="reg-email" placeholder="Email Address" required class="input-field">
+                
+                <div class="relative">
+                    <input type="password" id="reg-pass" placeholder="Create Password (Min 6 chars)" required class="input-field" minlength="6">
+                    <button type="button" onclick="togglePass('reg-pass')" class="absolute right-3 top-3 text-gray-400 hover:text-brand-primary transition"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 </div>
+                
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-brand-secondary to-pink-700 text-white font-bold rounded-xl shadow-lg shadow-brand-secondary/30 active:scale-95 transition-transform mt-2 transform hover:-translate-y-0.5">Sign Up</button>
+            </form>
+            
+            <div class="text-center mt-2">
+                <button onclick="switchAuthView('login')" class="text-xs font-bold text-gray-500 hover:text-brand-primary">Back to Login</button>
             </div>
+        </div>
 
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Student ID / Roll No</label>
-                <input type="text" id="signup-sid" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
-            </div>
+        <div id="view-forgot" class="auth-view hidden space-y-4">
+            <h3 class="text-lg font-bold border-l-4 border-gray-500 pl-3">Reset Password</h3>
+            <p class="text-sm text-gray-500">Enter your registered email address. We'll send you a secure link to reset your password.</p>
+            
+            <form onsubmit="handleForgotPass(event)" class="space-y-4">
+                <input type="email" id="forgot-email" placeholder="Email Address" required class="input-field">
+                <button type="submit" class="w-full py-3.5 bg-gray-800 dark:bg-white dark:text-black text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform transform hover:-translate-y-0.5">Send Reset Link</button>
+            </form>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Class</label>
-                    <select id="signup-class" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
-                        <option>FY</option><option>SY</option><option>TY</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Course</label>
-                    <select id="signup-course" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
-                        <option>BCOM</option><option>BAF</option><option>BMS</option><option>BBI</option><option>BAMMC</option><option>IT</option><option>CS</option>
-                    </select>
-                </div>
+            <div class="text-center mt-4">
+                <button onclick="switchAuthView('login')" class="text-xs font-bold text-gray-500 hover:text-brand-primary flex items-center justify-center gap-1 mx-auto">
+                    <i data-lucide="arrow-left" class="w-3 h-3"></i> Back to Login
+                </button>
             </div>
+        </div>
 
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
-                <input type="email" id="signup-email" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Password</label>
-                <input type="password" id="signup-password" class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:border-brand-primary outline-none">
-            </div>
+    </div>
 
-            <button onclick="signup()" class="w-full py-3 bg-black text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform mt-2">
-                Create Account
-            </button>
+    <div id="toast-container" class="fixed top-0 left-1/2 transform -translate-x-1/2 z-[100] toast-hidden w-full max-w-sm p-4">
+        <div id="toast-content" class="px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-3 backdrop-blur-md border border-white/10">
+            <span id="toast-icon"></span>
+            <span id="toast-text"></span>
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 bg-gray-800 text-white px-6 py-3 rounded-lg text-sm font-bold shadow-xl transform translate-y-20 opacity-0 transition-all duration-300">
-        Error Message
-    </div>
-
-    <script>
-        lucide.createIcons();
-        const supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
-
-        function toggleForm(type) {
-            const loginForm = document.getElementById('form-login');
-            const signupForm = document.getElementById('form-signup');
-            const btnLogin = document.getElementById('tab-login');
-            const btnSignup = document.getElementById('tab-signup');
-
-            if(type === 'login') {
-                loginForm.classList.remove('hidden');
-                signupForm.classList.add('hidden');
-                btnLogin.classList.add('bg-white', 'shadow', 'text-brand-primary');
-                btnLogin.classList.remove('text-gray-500');
-                btnSignup.classList.remove('bg-white', 'shadow', 'text-brand-primary');
-                btnSignup.classList.add('text-gray-500');
-            } else {
-                loginForm.classList.add('hidden');
-                signupForm.classList.remove('hidden');
-                btnSignup.classList.add('bg-white', 'shadow', 'text-brand-primary');
-                btnSignup.classList.remove('text-gray-500');
-                btnLogin.classList.remove('bg-white', 'shadow', 'text-brand-primary');
-                btnLogin.classList.add('text-gray-500');
-            }
-        }
-
-        async function login() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-
-            if(!email || !password) return showToast("Please fill all fields");
-
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                showToast(error.message);
-            } else {
-                // Check if admin
-                if (email.includes("admin") || email.includes("volunteer")) {
-                     window.location.href = 'admin.html';
-                } else {
-                     window.location.href = 'index.html';
-                }
-            }
-        }
-
-        async function signup() {
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const fname = document.getElementById('signup-fname').value;
-            const lname = document.getElementById('signup-lname').value;
-            const sid = document.getElementById('signup-sid').value;
-            const cls = document.getElementById('signup-class').value;
-            const course = document.getElementById('signup-course').value;
-            
-            // NEW FIELDS
-            const gender = document.getElementById('signup-gender').value;
-            const mobile = document.getElementById('signup-mobile').value;
-
-            if(!email || !password || !fname || !sid || !mobile) return showToast("Please fill all required fields");
-
-            const { data, error } = await supabase.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    data: {
-                        first_name: fname,
-                        last_name: lname,
-                        student_id: sid,
-                        class_name: cls,
-                        course: course,
-                        gender: gender,   // Sending Gender
-                        mobile: mobile,   // Sending Mobile
-                        role: 'student'
-                    }
-                }
-            });
-
-            if (error) {
-                showToast(error.message);
-            } else {
-                showToast("Account created! Please login.");
-                toggleForm('login');
-            }
-        }
-
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                t.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
-    </script>
+    <script src="auth.js"></script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
