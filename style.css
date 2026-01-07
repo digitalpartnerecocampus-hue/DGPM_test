@@ -1,14 +1,15 @@
 /* --- BASE & RESETS --- */
 body {
     font-family: 'Outfit', sans-serif;
-    -webkit-tap-highlight-color: transparent; /* Removes grey tap highlight on mobile */
-    overscroll-behavior-y: none; /* Prevents pull-to-refresh */
-    background-color: #f9fafb; /* Gray-50 */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    /* Smooth background transition for theme toggle */
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* --- UTILITIES --- */
 
-/* Hide Scrollbar for clean aesthetics */
+/* Hide Scrollbar */
 ::-webkit-scrollbar {
     width: 0px;
     background: transparent;
@@ -18,94 +19,99 @@ body {
     scrollbar-width: none;
 }
 
-/* Safe Area for iPhone Home Bar */
+/* Safe Area */
 .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 /* --- ANIMATIONS --- */
 
-/* Slide Up (Used for Modals) */
 @keyframes slideUp {
-    from { 
-        transform: translateY(100%); 
-        opacity: 0; 
-    }
-    to { 
-        transform: translateY(0); 
-        opacity: 1; 
-    }
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
-
 .animate-slide-up {
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Fade In (Used for View Switching) */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
-
 .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
 }
 
-/* Pulse (Used for Live Badges) */
 @keyframes pulse-red {
     0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
     70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
-
 .pulse-badge {
     animation: pulse-red 2s infinite;
 }
 
 /* --- COMPONENT STYLES --- */
 
-/* Navigation Active State (Simple Color Change) */
+/* Navigation Active State */
 .nav-item {
     transition: color 0.2s ease, transform 0.2s ease;
     color: #9ca3af; /* Gray-400 */
 }
-
 .nav-item.active {
-    color: #6366F1; /* Brand Primary (Indigo) */
+    color: #6366F1; /* Brand Primary */
     transform: translateY(-2px);
 }
-
-.nav-item.active i {
-    stroke-width: 2.5px;
+/* Dark Mode Nav Inactive */
+.dark .nav-item {
+    color: #6b7280; /* Gray-500 */
+}
+.dark .nav-item.active {
+    color: #818cf8; /* Indigo-400 */
 }
 
-/* Team Card Status Indicators (Left Border) */
+/* Team Card Status Indicators */
+/* Light Mode Defaults */
 .status-locked {
     border-left: 4px solid #ef4444; /* Red */
     background-color: #ffffff;
 }
-
 .status-open {
     border-left: 4px solid #10b981; /* Green */
     background-color: #ffffff;
 }
 
-/* Profile Header Overlay Pattern (Matches Screenshot) */
+/* Dark Mode Overrides for Cards */
+.dark .status-locked {
+    background-color: #1f2937; /* Gray-800 */
+    border-color: #ef4444; /* Keep red border */
+}
+.dark .status-open {
+    background-color: #1f2937; /* Gray-800 */
+    border-color: #10b981; /* Keep green border */
+}
+
+/* Profile Header Overlay Pattern */
 .bg-pattern-cubes {
-    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSIvPgo8L3N2Zz4=');
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+');
     opacity: 0.3;
 }
 
-/* Input Autofill Fix (Prevents yellow background) */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px white inset !important;
+/* Input Autofill Fix for Dark Mode */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #111827 inset !important; /* Matches Gray-900 */
+    -webkit-text-fill-color: white !important;
     border-radius: 0.75rem;
 }
 
-/* Toast Notification Logic */
+input:-webkit-autofill {
+    border-radius: 0.75rem;
+}
+
+/* Toast Positioning */
 .toast-visible {
     transform: translate(-50%, 0) !important;
     opacity: 1 !important;
