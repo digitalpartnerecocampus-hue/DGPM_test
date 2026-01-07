@@ -136,7 +136,7 @@ async function loadSportsForFilter() {
     if(select) select.innerHTML = `<option value="">All Sports</option>` + sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
-// --- 5. MATCH CENTER (UPDATED LOGIC) ---
+// --- 5. MATCH CENTER (VALIDATION & SCHEDULING) ---
 
 window.toggleMatchTab = function(tab) {
     document.getElementById('view-match-schedule').classList.add('hidden');
@@ -162,7 +162,7 @@ async function loadMatchScheduleTab() {
         sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
-// FIXED: Loads individual users for Solo sports, Teams for Team sports
+// LOADS PLAYERS (SOLO) OR TEAMS (TEAM)
 window.loadTeamsForMatch = async function(sportId) {
     if(!sportId) return;
     
@@ -172,7 +172,7 @@ window.loadTeamsForMatch = async function(sportId) {
     let options = `<option value="">Select Participant...</option>`;
     
     if (sport.type === 'Solo') {
-        // FETCH INDIVIDUAL PLAYERS (Directly from Registrations > Users)
+        // Fetch Individual Users
         const { data: regs } = await supabaseClient
             .from('registrations')
             .select(`
@@ -184,19 +184,20 @@ window.loadTeamsForMatch = async function(sportId) {
         if(regs) {
             options += regs.map(r => {
                 const name = `${r.users.first_name} ${r.users.last_name}`;
+                // Using Name as value for Solo, but for Team we use ID for validation later
                 return `<option value="${name}">${name} (${r.users.student_id})</option>`;
             }).join('');
         }
         
     } else {
-        // FETCH TEAMS
+        // Fetch Teams (Value = Team ID for validation, Text = Team Name)
         const { data: teams } = await supabaseClient
             .from('teams')
-            .select('id, name')
+            .select('id, name, status')
             .eq('sport_id', sportId);
             
         if(teams) {
-            options += teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            options += teams.map(t => `<option value="${t.id}" data-status="${t.status}" data-name="${t.name}">${t.name} (${t.status})</option>`).join('');
         }
     }
     
@@ -206,20 +207,58 @@ window.loadTeamsForMatch = async function(sportId) {
 
 window.createMatch = async function() {
     const sportId = document.getElementById('match-sport-select').value;
-    const teamA = document.getElementById('match-team-a').value; // Name string
-    const teamB = document.getElementById('match-team-b').value; // Name string
+    const teamAValue = document.getElementById('match-team-a').value; 
+    const teamBValue = document.getElementById('match-team-b').value;
     const time = document.getElementById('match-time').value;
     const loc = document.getElementById('match-location').value;
 
-    if(!sportId || !teamA || !teamB || !time) {
+    if(!sportId || !teamAValue || !teamBValue || !time) {
         showToast("Please fill all fields", "error");
         return;
     }
 
+    // VALIDATION 1: Cannot play against self
+    if (teamAValue === teamBValue) {
+        showToast("Opponents must be different.", "error");
+        return;
+    }
+
+    // Determine Names and IDs based on Sport Type
+    const { data: sport } = await supabaseClient.from('sports').select('type').eq('id', sportId).single();
+    
+    let nameA, nameB;
+
+    if (sport.type === 'Team') {
+        // For Teams, the value is the ID. We need to check if they are LOCKED.
+        const selA = document.getElementById('match-team-a').selectedOptions[0];
+        const selB = document.getElementById('match-team-b').selectedOptions[0];
+        
+        const statusA = selA.getAttribute('data-status');
+        const statusB = selB.getAttribute('data-status');
+        
+        nameA = selA.getAttribute('data-name');
+        nameB = selB.getAttribute('data-name');
+
+        // VALIDATION 2: Teams must be Locked (Full Squad)
+        if (statusA !== 'Locked') {
+            showToast(`${nameA} is not Locked (Squad incomplete).`, "error");
+            return;
+        }
+        if (statusB !== 'Locked') {
+            showToast(`${nameB} is not Locked (Squad incomplete).`, "error");
+            return;
+        }
+    } else {
+        // For Solo, value is the name itself
+        nameA = teamAValue;
+        nameB = teamBValue;
+    }
+
+    // Create Match
     const { error } = await supabaseClient.from('matches').insert({
         sport_id: sportId,
-        team1_name: teamA, 
-        team2_name: teamB,
+        team1_name: nameA, 
+        team2_name: nameB,
         start_time: time,
         location: loc,
         status: 'Upcoming',
@@ -229,7 +268,7 @@ window.createMatch = async function() {
 
     if (error) showToast(error.message, "error");
     else {
-        showToast("Match Scheduled!", "success");
+        showToast("Match Scheduled Successfully!", "success");
         document.getElementById('create-match-form').reset();
     }
 }
@@ -295,7 +334,7 @@ window.saveScore = async function(id) {
     else showToast("Score Updated", "success");
 }
 
-// --- 6. DATA MANAGER & EXPORTS (FIXED) ---
+// --- 6. DATA MANAGER & EXPORTS ---
 
 window.searchData = async function() {
     const query = document.getElementById('data-search').value.toLowerCase();
@@ -305,8 +344,6 @@ window.searchData = async function() {
 
     tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Loading data...</td></tr>';
 
-    // Query Registrations joined with Users and Sports
-    // We do NOT query 'team_name' anymore
     let dbQuery = supabaseClient
         .from('registrations')
         .select(`
@@ -329,13 +366,12 @@ window.searchData = async function() {
         return;
     }
 
-    // Filter logic
     const filtered = regs.filter(r => {
         const text = `${r.users.first_name} ${r.users.last_name} ${r.users.student_id}`.toLowerCase();
         return text.includes(query);
     });
 
-    currentDataList = filtered; // Save for export
+    currentDataList = filtered; 
 
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No records match your filters.</td></tr>';
@@ -420,88 +456,6 @@ window.exportData = function(type) {
         });
         doc.save("URJA_Report.pdf");
         showToast("PDF Downloaded", "success");
-    }
-}
-
-// --- 7. MEDAL ALLOCATOR ---
-let selectedMedalUser = null;
-
-window.searchStudentForMedal = async function() {
-    const query = document.getElementById('medal-search').value;
-    if(!query) return;
-
-    const { data: users } = await supabaseClient
-        .from('users')
-        .select('*')
-        .or(`student_id.eq.${query},first_name.ilike.%${query}%`)
-        .limit(1);
-
-    if (users && users.length > 0) {
-        const u = users[0];
-        selectedMedalUser = u;
-        
-        document.getElementById('medal-student-card').classList.remove('hidden');
-        document.getElementById('medal-user-name').innerText = `${u.first_name} ${u.last_name}`;
-        document.getElementById('medal-user-info').innerText = `${u.class_name} ${u.course} • ${u.student_id}`;
-        document.getElementById('medal-user-img').src = u.avatar_url || 'https://via.placeholder.com/80';
-    } else {
-        showToast("Student not found", "error");
-        document.getElementById('medal-student-card').classList.add('hidden');
-    }
-}
-
-window.awardMedal = async function(type) {
-    if(!selectedMedalUser) return;
-    
-    let pointsToAdd = 0;
-    let updateObj = {};
-
-    if(type === 'Gold') {
-        pointsToAdd = 50;
-        updateObj = { 
-            medals_gold: (selectedMedalUser.medals_gold || 0) + 1,
-            total_points: (selectedMedalUser.total_points || 0) + 50
-        };
-    } else if (type === 'Silver') {
-        pointsToAdd = 30;
-        updateObj = { 
-            medals_silver: (selectedMedalUser.medals_silver || 0) + 1,
-            total_points: (selectedMedalUser.total_points || 0) + 30
-        };
-    } else {
-        pointsToAdd = 10;
-        updateObj = { 
-            medals_bronze: (selectedMedalUser.medals_bronze || 0) + 1,
-            total_points: (selectedMedalUser.total_points || 0) + 10
-        };
-    }
-
-    const { data, error } = await supabaseClient
-        .from('users')
-        .update(updateObj)
-        .eq('id', selectedMedalUser.id)
-        .select()
-        .single();
-
-    if(error) {
-        showToast(error.message, "error");
-    } else {
-        showToast(`${type} Medal Awarded! (+${pointsToAdd} pts)`, "success");
-        selectedMedalUser = data; 
-        
-        // Sync with Leaderboard
-        await supabaseClient.from('leaderboard').upsert({ 
-            user_id: data.id, 
-            first_name: data.first_name,
-            last_name: data.last_name,
-            total_points: data.total_points,
-            medals_gold: data.medals_gold,
-            medals_silver: data.medals_silver,
-            medals_bronze: data.medals_bronze,
-            avatar_url: data.avatar_url,
-            class_name: data.class_name,
-            course: data.course
-        });
     }
 }
 
