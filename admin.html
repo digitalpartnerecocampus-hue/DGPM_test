@@ -53,9 +53,6 @@
             <button onclick="switchSection('data')" id="nav-data" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
                 <i data-lucide="database" class="w-5 h-5"></i> Data & Exports
             </button>
-            <button onclick="switchSection('medals')" id="nav-medals" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                <i data-lucide="medal" class="w-5 h-5"></i> Medal Allocator
-            </button>
         </nav>
 
         <div class="p-4 border-t border-gray-100">
@@ -83,7 +80,6 @@
             <button onclick="switchSection('sports'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Sports</button>
             <button onclick="switchSection('matches'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Matches</button>
             <button onclick="switchSection('data'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Data & Exports</button>
-            <button onclick="switchSection('medals'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Medals</button>
             <button onclick="adminLogout()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-red-600 mt-4">Logout</button>
         </nav>
     </div>
@@ -224,40 +220,6 @@
                             <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Apply filters to view data.</td></tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="section-medals" class="admin-section hidden animate-fade-in">
-            <h2 class="text-2xl font-bold mb-6">Medal Allocator</h2>
-            
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm max-w-2xl mx-auto">
-                <p class="text-sm text-gray-500 mb-4">Search for a student to award points and medals.</p>
-                
-                <div class="flex gap-2 mb-6 relative">
-                    <input type="text" id="medal-search" placeholder="Enter Student ID or Name..." class="flex-1 input-field">
-                    <button onclick="searchStudentForMedal()" class="px-6 py-2 bg-brand-primary text-white font-bold rounded-xl hover:bg-indigo-700">Find</button>
-                </div>
-
-                <div id="medal-student-card" class="hidden text-center p-6 bg-gray-50 rounded-xl border border-gray-200">
-                    <img id="medal-user-img" src="" class="w-20 h-20 rounded-full bg-gray-200 mx-auto mb-3 object-cover">
-                    <h3 class="text-xl font-bold" id="medal-user-name">Student Name</h3>
-                    <p class="text-gray-500 text-sm mb-6" id="medal-user-info">Class • ID</p>
-                    
-                    <div class="grid grid-cols-3 gap-3">
-                        <button onclick="awardMedal('Gold')" class="py-3 bg-[#FFD700] text-white font-black rounded-xl hover:opacity-90 shadow-sm border-b-4 border-[#E5C100] active:border-b-0 active:translate-y-1 transition-all">
-                            GOLD
-                            <span class="block text-[10px] font-medium text-black/40">+50 Pts</span>
-                        </button>
-                        <button onclick="awardMedal('Silver')" class="py-3 bg-[#C0C0C0] text-white font-black rounded-xl hover:opacity-90 shadow-sm border-b-4 border-[#A0A0A0] active:border-b-0 active:translate-y-1 transition-all">
-                            SILVER
-                            <span class="block text-[10px] font-medium text-black/40">+30 Pts</span>
-                        </button>
-                        <button onclick="awardMedal('Bronze')" class="py-3 bg-[#CD7F32] text-white font-black rounded-xl hover:opacity-90 shadow-sm border-b-4 border-[#A05A20] active:border-b-0 active:translate-y-1 transition-all">
-                            BRONZE
-                            <span class="block text-[10px] font-medium text-black/40">+10 Pts</span>
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
