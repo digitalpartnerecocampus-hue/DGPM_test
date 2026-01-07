@@ -11,7 +11,7 @@ body {
 
 /* Dark Mode Base Overrides */
 .dark body {
-    background-color: #111827; /* Gray-900 */
+    background-color: #0B0F19; /* Deep Gray/Black for OLED feel */
     color: #ffffff;
 }
 
@@ -35,11 +35,11 @@ body {
 
 /* --- ANIMATIONS --- */
 
-/* Slide Up (Used for Modals) */
+/* Slide Up (Optimized for Bottom Sheet Modal) */
 @keyframes slideUp {
     from { 
         transform: translateY(100%); 
-        opacity: 0; 
+        opacity: 0.5; 
     }
     to { 
         transform: translateY(0); 
@@ -48,17 +48,17 @@ body {
 }
 
 .animate-slide-up {
-    animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Fade In (Used for View Switching) */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
+    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Pulse (Used for Live Badges) */
@@ -82,7 +82,7 @@ body {
 
 .nav-item.active {
     color: #6366F1; /* Brand Primary (Indigo) */
-    transform: translateY(-3px);
+    transform: translateY(-2px);
 }
 
 /* Dark Mode Navigation */
@@ -91,37 +91,25 @@ body {
 }
 
 .dark .nav-item.active {
-    color: #818cf8; /* Indigo-400 (Lighter for dark mode) */
+    color: #818cf8; /* Indigo-400 */
 }
 
-/* Team Card Status Indicators (Left Border) */
-/* Light Mode Defaults */
+/* Team Card Status Indicators */
 .status-locked {
     border-left: 4px solid #ef4444; /* Red */
-    background-color: #ffffff;
 }
 
 .status-open {
     border-left: 4px solid #10b981; /* Green */
-    background-color: #ffffff;
 }
 
-/* Dark Mode Overrides for Cards */
-.dark .status-locked {
-    background-color: #1f2937; /* Gray-800 */
-    border-color: #ef4444; /* Keep red border */
-}
-
-.dark .status-open {
-    background-color: #1f2937; /* Gray-800 */
-    border-color: #10b981; /* Keep green border */
-}
-
-/* Profile Header Overlay Pattern (Matches Screenshot) */
+/* Profile Header Overlay Pattern */
 .bg-pattern-cubes {
     background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+');
     opacity: 0.3;
 }
+
+/* --- FORM & INPUT STYLES --- */
 
 /* Input Autofill Fix (Prevents yellow/white background ruining themes) */
 
@@ -145,22 +133,19 @@ input:-webkit-autofill:active {
     caret-color: white;
 }
 
-/* Ensure inputs keep rounded corners even with autofill */
 input:-webkit-autofill {
     border-radius: 0.75rem;
 }
 
+/* Standard Transitions */
+.transition-colors {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
 /* --- TOAST NOTIFICATION (BOTTOM) --- */
-/* The base class in HTML sets it to opacity-0 and translate-y-20 (down) */
-/* This class brings it up to visibility */
 .toast-visible {
     transform: translate(-50%, 0) !important; /* Resets Y to 0, keeps X centered */
     opacity: 1 !important;
-}
-
-/* Transitions for Common Elements */
-.transition-colors {
-    transition-property: background-color, border-color, color, fill, stroke;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 300ms;
 }
