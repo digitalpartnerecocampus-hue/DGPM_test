@@ -3,6 +3,7 @@ const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.s
 let currentUser = null;
 let allSports = [];
 let myRegistrations = []; // Array of Sport IDs the user has registered for
+let selectedSportForReg = null;
 
 // Hardcoded Capacities for Team Calculation
 const SPORT_CAPACITIES = {
@@ -94,6 +95,7 @@ function updateProfileUI() {
     if(detailsEl) detailsEl.innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
     
     if(!currentUser.mobile) {
+        // We will prompt for this if they try to register, but showing a toast is good practice
         showToast("⚠️ Add Mobile Number in Settings", "error");
     }
 }
@@ -254,28 +256,34 @@ function renderSportsList(list) {
     container.innerHTML = list.map(s => {
         const isRegistered = registeredIDs.includes(s.id);
         
-        // Dynamic Classes
+        // Card Styling based on logic
         const cardClass = isRegistered 
             ? "opacity-60 grayscale pointer-events-none cursor-not-allowed" 
-            : "active:scale-95 cursor-pointer";
+            : "active:scale-95 cursor-pointer hover:shadow-md";
             
+        // Badge Logic
         const badgeColor = isRegistered 
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" 
-            : "bg-green-50 text-green-500 dark:bg-green-900/20 dark:text-green-400";
-            
-        const badgeText = isRegistered ? "REGISTERED" : "OPEN";
+            ? "text-gray-400 bg-gray-100 dark:bg-gray-700" 
+            : "text-green-500 bg-green-50 dark:text-green-400 dark:bg-green-900/20";
+        const badgeText = isRegistered ? "DONE" : "OPEN";
+
         const clickAction = isRegistered ? "" : `onclick="window.openRegistrationModal('${s.id}')"`;
 
         return `
-        <div ${clickAction} class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center text-center gap-3 transition-transform ${cardClass}">
-            <div class="p-3 bg-indigo-50 dark:bg-indigo-900 rounded-full">
-                <i data-lucide="${s.icon || 'trophy'}" class="w-6 h-6 text-brand-primary dark:text-white"></i>
+        <div ${clickAction} class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative flex flex-col justify-between h-32 transition-all ${cardClass}">
+            
+            <div class="flex justify-between items-start">
+                <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/50 rounded-xl text-brand-primary dark:text-white">
+                    <i data-lucide="${s.icon || 'trophy'}" class="w-6 h-6"></i>
+                </div>
+                <span class="${badgeColor} text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">${badgeText}</span>
             </div>
-            <div class="flex-1 flex flex-col justify-center">
+
+            <div class="mt-2">
                 <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">${s.name}</h4>
-                <p class="text-xs text-gray-400 font-medium mt-1">${s.type}</p>
+                <p class="text-xs text-gray-400 font-medium mt-0.5">${s.type}</p>
             </div>
-            <span class="${badgeColor} px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">${badgeText}</span>
+            
         </div>`;
     }).join('');
     lucide.createIcons();
@@ -333,6 +341,7 @@ window.filterSports = function() {
 }
 
 // --- 6. TEAMS MODULE ---
+// (Logic retained, standard implementation)
 
 window.toggleTeamView = function(view) {
     document.getElementById('team-marketplace').classList.add('hidden');
@@ -645,29 +654,45 @@ window.showToast = function(msg, type='info') {
     }, 3000);
 }
 
-// --- REGISTRATION MODAL ---
+// --- REGISTRATION MODAL LOGIC (UPDATED) ---
+
 window.openRegistrationModal = async function(id) {
-    const { data } = await supabaseClient.from('sports').select('*').eq('id', id).single();
-    selectedSportForReg = data;
+    // 1. Fetch Sport Data
+    const { data: sport } = await supabaseClient.from('sports').select('*').eq('id', id).single();
+    selectedSportForReg = sport;
     
-    document.getElementById('reg-sport-info').innerHTML = `<div class="font-bold text-gray-800 dark:text-white">${data.name}</div>`;
+    // 2. Populate Modal Text (Matching New UI)
+    document.getElementById('reg-modal-sport-name').innerText = sport.name;
+    document.getElementById('reg-modal-sport-name-span').innerText = sport.name;
     
-    const mob = document.getElementById('reg-mobile');
-    mob.value = currentUser.mobile || '';
-    if(!currentUser.mobile) {
-        mob.readOnly = false;
-        mob.placeholder = "Enter Mobile No";
-        mob.classList.add('border-brand-primary');
+    // 3. Populate User Data (Participant Card)
+    document.getElementById('reg-modal-user-name').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
+    document.getElementById('reg-modal-user-details').innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
+
+    // 4. Handle Mobile Logic (Background check)
+    const mobInput = document.getElementById('reg-mobile');
+    if(currentUser.mobile) {
+        mobInput.value = currentUser.mobile; 
+    } else {
+        // If user has no mobile, we might need to prompt them, 
+        // but to keep the UI clean as per screenshot, we'll try to handle it gracefully or use a prompt if it fails.
+        mobInput.value = ''; 
     }
     
+    // 5. Show Modal
     document.getElementById('modal-register').classList.remove('hidden');
 }
 
 window.confirmRegistration = async function() {
-    const mobile = document.getElementById('reg-mobile').value;
-    if(!mobile || mobile.length < 10) return showToast("Enter Valid Mobile", "error");
-    
-    if(!currentUser.mobile) await supabaseClient.from('users').update({mobile}).eq('id', currentUser.id);
+    // Check Mobile Requirement (Backend usually needs it)
+    if(!currentUser.mobile) {
+        const phone = prompt("⚠️ Mobile number is required for coordination. Please enter yours:");
+        if(!phone || phone.length < 10) return showToast("Invalid Mobile Number", "error");
+        
+        // Update user profile immediately
+        await supabaseClient.from('users').update({mobile: phone}).eq('id', currentUser.id);
+        currentUser.mobile = phone; // Update local state
+    }
 
     const { error } = await supabaseClient.from('registrations').insert({
         user_id: currentUser.id,
