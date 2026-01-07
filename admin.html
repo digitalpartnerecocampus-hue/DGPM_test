@@ -8,6 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,7 +51,7 @@
                 <i data-lucide="swords" class="w-5 h-5"></i> Match Center
             </button>
             <button onclick="switchSection('data')" id="nav-data" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                <i data-lucide="database" class="w-5 h-5"></i> Data (Users/Teams)
+                <i data-lucide="database" class="w-5 h-5"></i> Data & Exports
             </button>
             <button onclick="switchSection('medals')" id="nav-medals" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
                 <i data-lucide="medal" class="w-5 h-5"></i> Medal Allocator
@@ -78,7 +82,7 @@
             <button onclick="switchSection('dashboard'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Dashboard</button>
             <button onclick="switchSection('sports'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Sports</button>
             <button onclick="switchSection('matches'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Matches</button>
-            <button onclick="switchSection('data'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Data</button>
+            <button onclick="switchSection('data'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Data & Exports</button>
             <button onclick="switchSection('medals'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Medals</button>
             <button onclick="adminLogout()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-red-600 mt-4">Logout</button>
         </nav>
@@ -99,19 +103,19 @@
                 </div>
                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Teams Created</p>
-                        <h3 class="text-3xl font-black text-gray-800" id="stat-teams">-</h3>
-                    </div>
-                    <div class="p-3 bg-purple-50 text-purple-600 rounded-xl"><i data-lucide="shield" class="w-6 h-6"></i></div>
-                </div>
-                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div>
                         <p class="text-xs font-bold text-gray-400 uppercase">Registrations</p>
                         <h3 class="text-3xl font-black text-gray-800" id="stat-regs">-</h3>
                     </div>
                     <div class="p-3 bg-green-50 text-green-600 rounded-xl"><i data-lucide="clipboard-check" class="w-6 h-6"></i></div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">Teams Created</p>
+                        <h3 class="text-3xl font-black text-gray-800" id="stat-teams">-</h3>
+                    </div>
+                    <div class="p-3 bg-purple-50 text-purple-600 rounded-xl"><i data-lucide="shield" class="w-6 h-6"></i></div>
+                </div>
+                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                     <div>
                         <p class="text-xs font-bold text-gray-400 uppercase">Live Matches</p>
                         <h3 class="text-3xl font-black text-red-500" id="stat-live">-</h3>
@@ -131,7 +135,6 @@
         <div id="section-sports" class="admin-section hidden animate-fade-in">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">Sports Manager</h2>
-                <button class="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-gray-800 transition">Add Sport</button>
             </div>
             
             <div id="admin-sports-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -155,8 +158,8 @@
                         <input type="datetime-local" id="match-time" class="input-field">
                         
                         <div class="md:col-span-2 grid grid-cols-2 gap-4">
-                            <select id="match-team-a" class="input-field"><option>Team A...</option></select>
-                            <select id="match-team-b" class="input-field"><option>Team B...</option></select>
+                            <select id="match-team-a" class="input-field"><option>Select Participant A...</option></select>
+                            <select id="match-team-b" class="input-field"><option>Select Participant B...</option></select>
                         </div>
                         
                         <input type="text" id="match-location" placeholder="Location (e.g. Ground A)" class="input-field md:col-span-2">
@@ -178,28 +181,47 @@
         </div>
 
         <div id="section-data" class="admin-section hidden animate-fade-in">
-            <h2 class="text-2xl font-bold mb-6">Data Manager</h2>
+            <h2 class="text-2xl font-bold mb-6">Data & Exports</h2>
             
             <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div class="flex gap-2 mb-6">
-                    <input type="text" id="data-search" placeholder="Search student by Name or ID..." class="flex-1 input-field">
-                    <button onclick="searchUsers()" class="px-6 py-2 bg-black text-white font-bold rounded-xl hover:bg-gray-800">Search</button>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+                    <input type="text" id="data-search" placeholder="Search Name/ID..." class="input-field">
+                    <select id="filter-sport" class="input-field">
+                        <option value="">All Sports</option>
+                        </select>
+                    <select id="filter-status" class="input-field">
+                        <option value="">All Statuses</option>
+                        <option value="Registered">Registered</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Playing">Playing</option>
+                        <option value="Played">Played</option>
+                        <option value="Won">Won</option>
+                    </select>
+                    <button onclick="searchData()" class="bg-black text-white font-bold rounded-xl hover:bg-gray-800">Apply Filters</button>
+                </div>
+
+                <div class="flex gap-3 mb-4">
+                    <button onclick="exportData('pdf')" class="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 text-xs">
+                        <i data-lucide="file-down" class="w-4 h-4"></i> Export PDF
+                    </button>
+                    <button onclick="exportData('excel')" class="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 font-bold rounded-lg hover:bg-green-200 text-xs">
+                        <i data-lucide="sheet" class="w-4 h-4"></i> Export Excel
+                    </button>
                 </div>
                 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-600">
+                    <table class="w-full text-left text-sm text-gray-600" id="data-export-table">
                         <thead class="bg-gray-50 text-gray-900 uppercase font-bold text-xs border-b border-gray-200">
                             <tr>
-                                <th class="px-4 py-3">Name</th>
-                                <th class="px-4 py-3">ID / Class</th>
-                                <th class="px-4 py-3">Contact</th>
-                                <th class="px-4 py-3">Actions</th>
+                                <th class="px-4 py-3">Student</th>
+                                <th class="px-4 py-3">Sport</th>
+                                <th class="px-4 py-3">Type</th>
+                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3">Action</th>
                             </tr>
                         </thead>
                         <tbody id="data-table-body">
-                            <tr>
-                                <td colspan="4" class="px-4 py-8 text-center text-gray-400">Search to view records (Saves Bandwidth)</td>
-                            </tr>
+                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Apply filters to view data.</td></tr>
                         </tbody>
                     </table>
                 </div>
