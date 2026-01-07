@@ -1,9 +1,8 @@
 // --- INITIALIZATION ---
-// Using 'supabaseClient' to avoid naming conflicts
 const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
 let currentUser = null; 
-let allLeaderboardData = []; // Store full list for the modal
+let allLeaderboardData = []; 
 
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
@@ -29,7 +28,9 @@ async function checkUserAndLoad() {
         return;
     }
 
+    // Load User, Data, and Registrations
     await fetchUserProfile(session.user.id);
+    await fetchUserRegistrations(session.user.id); // New: Load History
     setupRealtime();
     fetchData();
 }
@@ -44,6 +45,19 @@ async function fetchUserProfile(userId) {
     if (data) {
         currentUser = data;
         renderProfile(data);
+    }
+}
+
+async function fetchUserRegistrations(userId) {
+    // Fetch registrations with Sport details
+    const { data, error } = await supabaseClient
+        .from('registrations')
+        .select('*, sports(*)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (data) {
+        renderRegistrationHistory(data);
     }
 }
 
@@ -63,7 +77,7 @@ async function fetchData() {
         renderLiveMatches(matches.filter(m => m.status === 'Live'));
     }
 
-    // 3. Fetch Leaderboard (Get ALL data, we will filter/sort in JS)
+    // 3. Fetch Leaderboard
     const { data: leaderboard } = await supabaseClient.from('leaderboard').select('*');
     if (leaderboard) {
         allLeaderboardData = processLeaderboardData(leaderboard);
@@ -74,8 +88,7 @@ async function fetchData() {
 // --- LEADERBOARD LOGIC ---
 
 function processLeaderboardData(users) {
-    // 1. Filter out 0 points
-    // 2. Sort by Gold > Silver > Bronze (Olympic Style)
+    // Sort by Gold > Silver > Bronze
     return users
         .filter(u => u.total_points > 0)
         .sort((a, b) => {
@@ -97,12 +110,9 @@ function renderLeaderboardWidget(users) {
         return;
     }
 
-    // Show only Top 5
     const top5 = users.slice(0, 5);
-    
     container.innerHTML = top5.map((u, index) => renderLeaderboardItem(u, index)).join('');
     
-    // Show/Hide "View All" button
     if (users.length > 5) {
         viewAllBtn.classList.remove('hidden');
         viewAllBtn.innerText = `View Full Leaderboard (${users.length})`;
@@ -114,11 +124,10 @@ function renderLeaderboardWidget(users) {
 }
 
 function renderLeaderboardItem(u, index) {
-    // Top 3 get special colors for the rank number
     let rankColor = "text-gray-400";
-    if (index === 0) rankColor = "text-[#FFD700]"; // Gold
-    if (index === 1) rankColor = "text-[#C0C0C0]"; // Silver
-    if (index === 2) rankColor = "text-[#CD7F32]"; // Bronze
+    if (index === 0) rankColor = "text-[#FFD700]";
+    if (index === 1) rankColor = "text-[#C0C0C0]";
+    if (index === 2) rankColor = "text-[#CD7F32]";
 
     return `
         <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-white/5 rounded-xl mb-2">
@@ -138,33 +147,6 @@ function renderLeaderboardItem(u, index) {
     `;
 }
 
-// --- LEADERBOARD MODAL ---
-
-window.openLeaderboardModal = function() {
-    const modal = document.getElementById('leaderboard-modal');
-    const content = document.getElementById('leaderboard-content');
-    const listContainer = document.getElementById('full-leaderboard-list');
-    
-    // Render ALL users
-    listContainer.innerHTML = allLeaderboardData.map((u, index) => renderLeaderboardItem(u, index)).join('');
-    lucide.createIcons();
-
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        content.classList.remove('translate-y-full');
-    }, 10);
-}
-
-window.closeLeaderboardModal = function() {
-    const modal = document.getElementById('leaderboard-modal');
-    const content = document.getElementById('leaderboard-content');
-    
-    content.classList.add('translate-y-full');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
-
 // --- UI RENDERING ---
 
 function renderProfile(user) {
@@ -174,8 +156,8 @@ function renderProfile(user) {
     };
 
     setTxt('profile-name', `${user.first_name || ''} ${user.last_name || ''}`);
-    // Added Course to details
-    setTxt('profile-details', `${user.course || 'Student'} ${user.class_name || ''} • ${user.student_id || ''}`);
+    // Display Course here
+    setTxt('profile-details', `${user.course || ''} ${user.class_name || ''} • ${user.student_id || ''}`);
     
     setTxt('stat-gold', user.medals_gold || 0);
     setTxt('stat-silver', user.medals_silver || 0);
@@ -206,6 +188,32 @@ function renderRegistrationCards(sports) {
             </div>
         `;
     }).join('');
+    lucide.createIcons();
+}
+
+function renderRegistrationHistory(registrations) {
+    const container = document.getElementById('view-reg-history');
+    if(!container) return;
+
+    if (registrations.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-gray-500 text-sm">You haven\'t registered for any events yet.</div>';
+        return;
+    }
+
+    container.innerHTML = registrations.map(reg => `
+        <div class="glass p-4 rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center mb-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg text-brand-primary">
+                    <i data-lucide="${reg.sports?.icon || 'trophy'}" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm dark:text-white">${reg.sports?.name || 'Unknown Sport'}</h4>
+                    <p class="text-[10px] text-gray-500">${new Date(reg.created_at).toLocaleDateString()}</p>
+                </div>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-1 bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded">Registered</span>
+        </div>
+    `).join('');
     lucide.createIcons();
 }
 
@@ -315,6 +323,8 @@ window.submitReg = async function(sportId) {
         showToast("Registered Successfully!", 'success');
         closeRegModal();
         confetti({ particleCount: 150, spread: 60, origin: { y: 0.7 } });
+        // Refresh history immediately
+        fetchUserRegistrations(currentUser.id);
     }
 }
 
@@ -324,6 +334,34 @@ window.closeRegModal = function() {
     setTimeout(() => {
         document.getElementById('reg-modal').classList.add('hidden');
     }, 300);
+}
+
+// Toggle Registration Views (New vs History)
+window.toggleRegView = function(view) {
+    const btnNew = document.getElementById('btn-reg-new');
+    const btnHist = document.getElementById('btn-reg-history');
+    const viewNew = document.getElementById('view-reg-new');
+    const viewHist = document.getElementById('view-reg-history');
+
+    if (view === 'new') {
+        viewNew.classList.remove('hidden');
+        viewHist.classList.add('hidden');
+        
+        btnNew.classList.remove('text-gray-500', 'dark:text-gray-400');
+        btnNew.classList.add('bg-white', 'dark:bg-gray-700', 'shadow', 'text-brand-primary');
+        
+        btnHist.classList.add('text-gray-500', 'dark:text-gray-400');
+        btnHist.classList.remove('bg-white', 'dark:bg-gray-700', 'shadow', 'text-brand-primary');
+    } else {
+        viewNew.classList.add('hidden');
+        viewHist.classList.remove('hidden');
+        
+        btnHist.classList.remove('text-gray-500', 'dark:text-gray-400');
+        btnHist.classList.add('bg-white', 'dark:bg-gray-700', 'shadow', 'text-brand-primary');
+        
+        btnNew.classList.add('text-gray-500', 'dark:text-gray-400');
+        btnNew.classList.remove('bg-white', 'dark:bg-gray-700', 'shadow', 'text-brand-primary');
+    }
 }
 
 // Avatar Upload
@@ -445,4 +483,30 @@ if(themeBtn) {
             localStorage.theme = 'dark';
         }
     });
+}
+
+// Leaderboard Modal
+window.openLeaderboardModal = function() {
+    const modal = document.getElementById('leaderboard-modal');
+    const content = document.getElementById('leaderboard-content');
+    const listContainer = document.getElementById('full-leaderboard-list');
+    
+    // Render ALL users
+    listContainer.innerHTML = allLeaderboardData.map((u, index) => renderLeaderboardItem(u, index)).join('');
+    lucide.createIcons();
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        content.classList.remove('translate-y-full');
+    }, 10);
+}
+
+window.closeLeaderboardModal = function() {
+    const modal = document.getElementById('leaderboard-modal');
+    const content = document.getElementById('leaderboard-content');
+    
+    content.classList.add('translate-y-full');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
 }
