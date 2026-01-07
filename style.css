@@ -9,8 +9,7 @@ body {
     background-color: #f9fafb; /* Light Mode Default (Gray-50) */
 }
 
-/* Dark Mode Background Override handled by Tailwind classes in HTML, 
-   but ensuring base text color transition here */
+/* Dark Mode Base Overrides */
 .dark body {
     background-color: #111827; /* Gray-900 */
     color: #ffffff;
@@ -151,9 +150,11 @@ input:-webkit-autofill {
     border-radius: 0.75rem;
 }
 
-/* Toast Notification Logic */
+/* --- TOAST NOTIFICATION (BOTTOM) --- */
+/* The base class in HTML sets it to opacity-0 and translate-y-20 (down) */
+/* This class brings it up to visibility */
 .toast-visible {
-    transform: translate(-50%, 0) !important;
+    transform: translate(-50%, 0) !important; /* Resets Y to 0, keeps X centered */
     opacity: 1 !important;
 }
 
