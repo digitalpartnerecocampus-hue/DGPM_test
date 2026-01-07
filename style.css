@@ -82,17 +82,39 @@ nav.glass {
 .nav-item.active i { transform: translateY(-3px); transition: transform 0.3s ease; }
 .nav-item.active span { font-weight: 800; }
 
-/* --- MOBILE APP TOAST NOTIFICATION --- */
+/* --- MOBILE APP TOAST NOTIFICATION (BOTTOM) --- */
 #toast-container {
     transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    bottom: 5rem; /* 80px from bottom (above nav) */
 }
+
+/* Hidden: Pushed down slightly and transparent */
 .toast-hidden {
     opacity: 0;
-    transform: translate(-50%, -150%); /* Start hidden above */
+    transform: translate(-50%, 20px); 
     pointer-events: none;
 }
+
+/* Visible: In place */
 .toast-visible {
     opacity: 1;
-    transform: translate(-50%, 20px); /* Drop down to visible */
+    transform: translate(-50%, 0); 
     pointer-events: auto;
+}
+
+/* --- TEAM & CAPTAIN STYLES --- */
+.team-card {
+    transition: border-color 0.2s, transform 0.2s;
+}
+.team-card:active {
+    transform: scale(0.98);
+}
+.request-item {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.dark .request-item {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.request-item:last-child {
+    border-bottom: none;
 }
