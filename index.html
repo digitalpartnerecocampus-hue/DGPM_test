@@ -209,18 +209,30 @@
         </div>
 
         <div id="tab-registration" class="tab-content hidden px-4 mt-4">
-            <div class="mb-4">
-                <h3 class="text-lg font-bold leading-tight">All Games</h3>
-                <p class="text-xs text-gray-500">Select a sport to register</p>
+            
+            <div class="flex p-1 bg-gray-200 dark:bg-white/10 rounded-xl mb-6">
+                <button onclick="toggleRegView('new')" id="btn-reg-new" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white dark:bg-gray-700 shadow text-brand-primary transition-all">New Registration</button>
+                <button onclick="toggleRegView('history')" id="btn-reg-history" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 dark:text-gray-400 transition-all">My History</button>
             </div>
 
-            <div class="relative mb-6">
-                <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-gray-400"></i>
-                <input type="text" id="sport-search" onkeyup="filterSports()" placeholder="Search sports..." class="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary dark:text-white">
+            <div id="view-reg-new" class="animate-fade-in">
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold leading-tight">All Games</h3>
+                    <p class="text-xs text-gray-500">Select a sport to register</p>
+                </div>
+
+                <div class="relative mb-6">
+                    <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5 text-gray-400"></i>
+                    <input type="text" id="sport-search" onkeyup="filterSports()" placeholder="Search sports..." class="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary dark:text-white">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pb-24" id="registration-grid">
+                    <div class="col-span-2 text-center py-10 text-gray-500">Loading Sports...</div>
+                </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 pb-24" id="registration-grid">
-                <div class="col-span-2 text-center py-10 text-gray-500">Loading Sports...</div>
+            <div id="view-reg-history" class="hidden animate-fade-in pb-24 space-y-3">
+                <div class="text-center py-10 text-gray-500 text-sm">Loading History...</div>
             </div>
         </div>
 
