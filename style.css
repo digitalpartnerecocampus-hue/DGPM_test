@@ -2,27 +2,24 @@
 body {
     font-family: 'Outfit', sans-serif;
     -webkit-tap-highlight-color: transparent; /* Removes grey tap highlight on mobile */
-    overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile apps */
-    background-color: #F8FAFC; /* Slate-50 - Clean premium background */
+    overscroll-behavior-y: none; /* Prevents pull-to-refresh */
+    background-color: #f9fafb; /* Gray-50 */
+}
+
+/* --- UTILITIES --- */
+
+/* Hide Scrollbar for clean aesthetics */
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+/* Safe Area for iPhone Home Bar */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
 /* --- ANIMATIONS --- */
-
-/* Smooth Fade In (Used for Tab Switching) */
-@keyframes fadeIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(8px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
-}
-
-.animate-fade-in {
-    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
 
 /* Slide Up (Used for Modals) */
 @keyframes slideUp {
@@ -37,13 +34,23 @@ body {
 }
 
 .animate-slide-up {
-    animation: slideUp 0.5s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+    animation: slideUp 0.3s ease-out forwards;
 }
 
-/* Pulse (Used for Live Badges) */
+/* Fade In (Used for View Switching) */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.view-section {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Pulse (Used for Live Dot) */
 @keyframes pulse-red {
     0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-    70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
@@ -51,42 +58,15 @@ body {
     animation: pulse-red 2s infinite;
 }
 
-/* --- UTILITIES --- */
-
-/* Safe Area for iPhone Home Bar */
-.pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-}
-
-/* Hide Scrollbar for clean aesthetics */
-::-webkit-scrollbar {
-    width: 0px;
-    background: transparent;
-}
-.custom-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* Input Autofill Fix (Prevents yellow background) */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px white inset !important;
-    border-radius: 1rem;
-}
-
 /* --- COMPONENT STYLES --- */
 
-/* Navigation Active State (Subtle Lift) */
+/* Navigation Active State */
 .nav-item {
-    transition: all 0.3s ease;
-    color: #9CA3AF; /* gray-400 */
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .nav-item.active {
-    color: #6366F1; /* indigo-500 */
+    color: #6366F1; /* Brand Primary (Indigo) */
     transform: translateY(-2px);
 }
 
@@ -94,26 +74,19 @@ input:-webkit-autofill:active{
     stroke-width: 2.5px;
 }
 
-/* Glassmorphism Class (Optional usage) */
-.glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-/* Modal Overlay Blur Transition */
-.backdrop-blur-sm {
-    transition: backdrop-filter 0.3s ease;
-}
-
-/* Team Card Status Gradients */
+/* Team Status Indicators (Simple Left Border) */
 .status-locked {
-    background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
-    border-left: 4px solid #ef4444;
+    border-left: 4px solid #ef4444; /* Red */
+    background-color: #ffffff;
 }
 
 .status-open {
-    background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
-    border-left: 4px solid #10b981;
+    border-left: 4px solid #10b981; /* Green */
+    background-color: #ffffff;
+}
+
+/* Toast Notification Logic */
+.toast-visible {
+    transform: translate(-50%, 0) !important;
+    opacity: 1 !important;
 }
