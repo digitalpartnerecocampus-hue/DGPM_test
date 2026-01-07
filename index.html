@@ -105,12 +105,13 @@
             </div>
 
             <div id="team-marketplace">
-                 <div class="relative mb-4">
-                    <select id="team-sport-filter" class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none font-medium appearance-none transition-colors" onchange="window.loadTeamMarketplace()">
+                 <div class="relative mb-6">
+                    <select id="team-sport-filter" class="w-full p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none font-bold appearance-none transition-colors shadow-sm focus:border-brand-primary" onchange="window.loadTeamMarketplace()">
                         <option value="all">All Sports</option>
                     </select>
-                    <i data-lucide="chevron-down" class="absolute right-4 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"></i>
+                    <i data-lucide="chevron-down" class="absolute right-4 top-4 w-5 h-5 text-gray-400 pointer-events-none"></i>
                  </div>
+
                 <div id="marketplace-list" class="space-y-3">
                     <p class="text-center text-gray-400 py-10">Loading...</p>
                 </div>
@@ -242,10 +243,8 @@
 
     <div id="modal-register" class="fixed inset-0 z-[60] bg-black/60 hidden flex items-end justify-center backdrop-blur-sm sm:items-center">
         <div class="absolute inset-0" onclick="window.closeModal('modal-register')"></div>
-
         <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up transition-colors relative z-10">
             <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-6"></div>
-
             <h2 id="reg-modal-sport-name" class="text-3xl font-black italic text-gray-900 dark:text-white mb-6">Sport Name</h2>
             
             <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 mb-6">
@@ -267,22 +266,28 @@
         </div>
     </div>
 
-    <div id="modal-create-team" class="fixed inset-0 z-[60] bg-black/50 hidden flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
+    <div id="modal-create-team" class="fixed inset-0 z-[60] bg-black/60 hidden flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-slide-up transition-colors">
-            <h3 class="text-lg font-bold mb-4 dark:text-white">Create New Team</h3>
-            
-            <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Team Name</label>
-            <input type="text" id="new-team-name" placeholder="e.g. Thunder Strikers" class="w-full p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl mb-3 text-sm font-bold outline-none focus:border-brand-primary dark:text-white">
-            
-            <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Sport</label>
-            <div class="relative mb-6">
-                <select id="new-team-sport" class="w-full p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none appearance-none dark:text-white"></select>
-                <i data-lucide="chevron-down" class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none"></i>
+            <h3 class="text-xl font-black mb-6 dark:text-white">Create New Team</h3>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Team Name</label>
+                    <input type="text" id="new-team-name" placeholder="e.g. RCB" class="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold outline-none focus:border-brand-primary dark:text-white transition-all shadow-sm">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Sport</label>
+                    <div class="relative">
+                        <select id="new-team-sport" class="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold outline-none appearance-none dark:text-white transition-all shadow-sm focus:border-brand-primary"></select>
+                        <i data-lucide="chevron-down" class="absolute right-3.5 top-4 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                    </div>
+                </div>
             </div>
-            
-            <div class="flex gap-3">
-                <button onclick="window.closeModal('modal-create-team')" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 font-bold rounded-xl text-gray-600 dark:text-gray-300">Cancel</button>
-                <button onclick="window.createTeam()" class="flex-1 py-3 bg-brand-primary text-white font-bold rounded-xl">Create</button>
+
+            <div class="flex gap-3 mt-8">
+                <button onclick="window.closeModal('modal-create-team')" class="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700 font-bold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-colors">Cancel</button>
+                <button onclick="window.createTeam()" class="flex-1 py-3.5 bg-brand-primary text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95 transition-transform">Create</button>
             </div>
         </div>
     </div>
