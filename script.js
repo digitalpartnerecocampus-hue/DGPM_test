@@ -1,18 +1,21 @@
 // --- INITIALIZATION ---
+// Using 'supabaseClient' to avoid naming conflicts
 const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
 let currentUser = null; 
+let allLeaderboardData = []; // Store full list for the modal
 
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     
-    // 1. Strict Light Mode Default
+    // 1. Theme Check
     if (localStorage.theme === 'dark') {
         document.documentElement.classList.add('dark');
     } else {
         document.documentElement.classList.remove('dark');
     }
 
+    // 2. Start App
     checkUserAndLoad();
 });
 
@@ -38,11 +41,6 @@ async function fetchUserProfile(userId) {
         .eq('id', userId)
         .single();
 
-    if (error) {
-        console.error("Error fetching profile:", error);
-        return;
-    }
-
     if (data) {
         currentUser = data;
         renderProfile(data);
@@ -50,17 +48,121 @@ async function fetchUserProfile(userId) {
 }
 
 async function fetchData() {
+    // 1. Fetch Sports
     const { data: sports } = await supabaseClient.from('sports').select('*').order('id');
     if (sports) renderRegistrationCards(sports);
 
-    const { data: matches } = await supabaseClient.from('matches').select('*, sports(name)').order('start_time', {ascending: true});
+    // 2. Fetch Matches
+    const { data: matches } = await supabaseClient
+        .from('matches')
+        .select('*, sports(name)')
+        .order('start_time', {ascending: true});
+    
     if (matches) {
         renderSchedule(matches);
         renderLiveMatches(matches.filter(m => m.status === 'Live'));
     }
 
-    const { data: leaderboard } = await supabaseClient.from('leaderboard').select('*').limit(10);
-    if (leaderboard) renderLeaderboard(leaderboard);
+    // 3. Fetch Leaderboard (Get ALL data, we will filter/sort in JS)
+    const { data: leaderboard } = await supabaseClient.from('leaderboard').select('*');
+    if (leaderboard) {
+        allLeaderboardData = processLeaderboardData(leaderboard);
+        renderLeaderboardWidget(allLeaderboardData);
+    }
+}
+
+// --- LEADERBOARD LOGIC ---
+
+function processLeaderboardData(users) {
+    // 1. Filter out 0 points
+    // 2. Sort by Gold > Silver > Bronze (Olympic Style)
+    return users
+        .filter(u => u.total_points > 0)
+        .sort((a, b) => {
+            if (b.medals_gold !== a.medals_gold) return b.medals_gold - a.medals_gold;
+            if (b.medals_silver !== a.medals_silver) return b.medals_silver - a.medals_silver;
+            return b.medals_bronze - a.medals_bronze;
+        });
+}
+
+function renderLeaderboardWidget(users) {
+    const container = document.getElementById('leaderboard-container');
+    const viewAllBtn = document.getElementById('view-all-leaderboard');
+    
+    if(!container) return;
+
+    if (users.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-300 dark:border-white/10 rounded-xl">No medals awarded yet.</div>';
+        viewAllBtn.classList.add('hidden');
+        return;
+    }
+
+    // Show only Top 5
+    const top5 = users.slice(0, 5);
+    
+    container.innerHTML = top5.map((u, index) => renderLeaderboardItem(u, index)).join('');
+    
+    // Show/Hide "View All" button
+    if (users.length > 5) {
+        viewAllBtn.classList.remove('hidden');
+        viewAllBtn.innerText = `View Full Leaderboard (${users.length})`;
+    } else {
+        viewAllBtn.classList.add('hidden');
+    }
+    
+    lucide.createIcons();
+}
+
+function renderLeaderboardItem(u, index) {
+    // Top 3 get special colors for the rank number
+    let rankColor = "text-gray-400";
+    if (index === 0) rankColor = "text-[#FFD700]"; // Gold
+    if (index === 1) rankColor = "text-[#C0C0C0]"; // Silver
+    if (index === 2) rankColor = "text-[#CD7F32]"; // Bronze
+
+    return `
+        <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-white/5 rounded-xl mb-2">
+             <div class="font-black ${rankColor} w-6 text-center text-lg">${index + 1}</div>
+             <img src="${u.avatar_url}" class="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100 dark:border-white/10">
+             <div class="flex-1">
+                 <h4 class="font-bold text-sm dark:text-white">${u.first_name} ${u.last_name}</h4>
+                 <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">${u.course || ''} ${u.class_name || ''}</p>
+             </div>
+             <div class="flex gap-2 text-xs font-bold">
+                ${u.medals_gold > 0 ? `<span class="text-[#FFD700] flex items-center gap-0.5">${u.medals_gold}<i data-lucide="medal" class="w-3 h-3"></i></span>` : ''}
+                ${u.medals_silver > 0 ? `<span class="text-[#C0C0C0] flex items-center gap-0.5">${u.medals_silver}<i data-lucide="medal" class="w-3 h-3"></i></span>` : ''}
+                ${u.medals_bronze > 0 ? `<span class="text-[#CD7F32] flex items-center gap-0.5">${u.medals_bronze}<i data-lucide="medal" class="w-3 h-3"></i></span>` : ''}
+             </div>
+             <div class="w-12 text-right font-black text-brand-primary text-sm">${u.total_points}</div>
+        </div>
+    `;
+}
+
+// --- LEADERBOARD MODAL ---
+
+window.openLeaderboardModal = function() {
+    const modal = document.getElementById('leaderboard-modal');
+    const content = document.getElementById('leaderboard-content');
+    const listContainer = document.getElementById('full-leaderboard-list');
+    
+    // Render ALL users
+    listContainer.innerHTML = allLeaderboardData.map((u, index) => renderLeaderboardItem(u, index)).join('');
+    lucide.createIcons();
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        content.classList.remove('translate-y-full');
+    }, 10);
+}
+
+window.closeLeaderboardModal = function() {
+    const modal = document.getElementById('leaderboard-modal');
+    const content = document.getElementById('leaderboard-content');
+    
+    content.classList.add('translate-y-full');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
 }
 
 // --- UI RENDERING ---
@@ -72,8 +174,8 @@ function renderProfile(user) {
     };
 
     setTxt('profile-name', `${user.first_name || ''} ${user.last_name || ''}`);
-    // Updated Profile Details format
-    setTxt('profile-details', `${user.course || ''} ${user.class_name || ''} • ${user.student_id || ''}`);
+    // Added Course to details
+    setTxt('profile-details', `${user.course || 'Student'} ${user.class_name || ''} • ${user.student_id || ''}`);
     
     setTxt('stat-gold', user.medals_gold || 0);
     setTxt('stat-silver', user.medals_silver || 0);
@@ -82,12 +184,6 @@ function renderProfile(user) {
     if (user.avatar_url) {
         const profileImg = document.getElementById('profile-img');
         if(profileImg) profileImg.src = user.avatar_url;
-
-        const navAvatar = document.getElementById('user-avatar-small');
-        if(navAvatar) {
-            navAvatar.classList.remove('hidden');
-            navAvatar.querySelector('img').src = user.avatar_url;
-        }
     }
 }
 
@@ -98,7 +194,7 @@ function renderRegistrationCards(sports) {
     grid.innerHTML = sports.map(sport => {
         const isClosed = sport.status === "Closed";
         return `
-            <div class="glass p-4 rounded-2xl border ${isClosed ? 'border-gray-200 opacity-60' : 'border-transparent hover:border-brand-primary/30'} cursor-pointer bg-white dark:bg-white/5 shadow-sm transition-all" onclick="openReg('${sport.id}', '${sport.name}')">
+            <div class="glass p-4 rounded-2xl border ${isClosed ? 'border-gray-200 opacity-60' : 'border-transparent hover:border-brand-primary/30'} cursor-pointer bg-white dark:bg-white/5 shadow-sm transition-all active:scale-95" onclick="openReg('${sport.id}', '${sport.name}')">
                 <div class="flex justify-between items-start mb-2">
                     <div class="p-2 ${isClosed ? 'bg-gray-200 dark:bg-white/10' : 'bg-brand-primary/10'} rounded-lg">
                         <i data-lucide="${sport.icon || 'trophy'}" class="w-5 h-5 ${isClosed ? 'text-gray-500' : 'text-brand-primary'}"></i>
@@ -165,30 +261,11 @@ function renderLiveMatches(matches) {
     `).join('');
 }
 
-function renderLeaderboard(users) {
-    const container = document.getElementById('leaderboard-container');
-    if(!container) return;
-
-    container.innerHTML = users.map((u, index) => `
-        <div class="flex items-center gap-4 p-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-white/5 rounded-xl mb-2">
-             <div class="font-bold text-gray-400 w-4">${index + 1}</div>
-             <img src="${u.avatar_url}" class="w-8 h-8 rounded-full bg-gray-200 object-cover">
-             <div class="flex-1">
-                 <h4 class="font-bold text-sm dark:text-white">${u.first_name} ${u.last_name}</h4>
-                 <p class="text-[10px] text-gray-500 uppercase">${u.class_name || ''}</p>
-             </div>
-             <div class="font-black text-brand-primary">${u.total_points || 0} pts</div>
-        </div>
-    `).join('');
-}
-
-// --- INTERACTIVE ACTIONS ---
+// --- ACTIONS & UTILS ---
 
 function setupRealtime() {
     supabaseClient.channel('public:matches')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-            fetchData(); 
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => fetchData())
         .subscribe();
 }
 
@@ -196,8 +273,13 @@ function setupRealtime() {
 window.openReg = function(id, name) {
     document.getElementById('modal-sport-title').innerText = name;
     document.getElementById('reg-modal').classList.remove('hidden');
-    
     const container = document.getElementById('reg-form-container');
+    
+    // Slide up animation
+    setTimeout(() => {
+        document.getElementById('reg-content').classList.remove('translate-y-full');
+    }, 10);
+
     container.innerHTML = `
         <div class="py-4">
             <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-xl mb-4 border border-gray-100 dark:border-white/5">
@@ -231,16 +313,20 @@ window.submitReg = async function(sportId) {
         showToast(error.message, 'error');
     } else {
         showToast("Registered Successfully!", 'success');
-        document.getElementById('reg-modal').classList.add('hidden');
+        closeRegModal();
         confetti({ particleCount: 150, spread: 60, origin: { y: 0.7 } });
     }
 }
 
 window.closeRegModal = function() {
-    document.getElementById('reg-modal').classList.add('hidden');
+    const content = document.getElementById('reg-content');
+    content.classList.add('translate-y-full');
+    setTimeout(() => {
+        document.getElementById('reg-modal').classList.add('hidden');
+    }, 300);
 }
 
-// Cloudinary Avatar Upload
+// Avatar Upload
 window.uploadAvatar = function() {
     document.getElementById('avatar-input').click();
 }
@@ -270,15 +356,13 @@ window.handleAvatarUpload = async function(input) {
                 .eq('id', currentUser.id);
 
             if (error) throw error;
-            
             currentUser.avatar_url = data.secure_url;
             renderProfile(currentUser);
         }
         img.style.opacity = '1';
         
     } catch (err) {
-        console.error("Upload error:", err);
-        showToast("Upload failed. Try again.", 'error');
+        showToast("Upload failed.", 'error');
         img.src = originalSrc;
         img.style.opacity = '1';
     }
@@ -307,20 +391,17 @@ window.logout = async function() {
     window.location.href = 'login.html';
 }
 
-const themeBtn = document.getElementById('theme-toggle');
-if(themeBtn) {
-    themeBtn.addEventListener('click', () => {
-        if (document.documentElement.classList.contains('dark')) {
-            document.documentElement.classList.remove('dark');
-            localStorage.theme = 'light';
-        } else {
-            document.documentElement.classList.add('dark');
-            localStorage.theme = 'dark';
-        }
+// Search Filter
+window.filterSports = function() {
+    const input = document.getElementById('sport-search').value.toLowerCase();
+    const cards = document.getElementById('registration-grid').children;
+    Array.from(cards).forEach(card => {
+        const title = card.querySelector('h4').textContent.toLowerCase();
+        card.style.display = title.includes(input) ? "block" : "none";
     });
 }
 
-// --- TOAST UTILITY (DUPLICATED FOR APP SCOPE) ---
+// Toast
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const content = document.getElementById('toast-content');
@@ -350,4 +431,18 @@ function showToast(message, type = 'info') {
         container.classList.remove('toast-visible');
         container.classList.add('toast-hidden');
     }, 3500);
+}
+
+// Theme Toggle
+const themeBtn = document.getElementById('theme-toggle');
+if(themeBtn) {
+    themeBtn.addEventListener('click', () => {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.theme = 'light';
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.theme = 'dark';
+        }
+    });
 }
