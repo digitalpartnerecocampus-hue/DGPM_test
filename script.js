@@ -34,15 +34,17 @@ async function checkAuth() {
 
     if(profile) {
         currentUser = profile;
-        document.getElementById('user-firstname').innerText = currentUser.first_name.toUpperCase();
-        document.getElementById('header-avatar').src = currentUser.avatar_url || `https://ui-avatars.com/api/?name=${currentUser.first_name}+${currentUser.last_name}&background=random`;
-        document.getElementById('profile-img').src = document.getElementById('header-avatar').src;
-        document.getElementById('profile-name').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
-        document.getElementById('profile-details').innerText = `${currentUser.class_name} • ${currentUser.student_id}`;
-        document.getElementById('profile-points').innerText = `${currentUser.total_points || 0} Points`;
         
-        // Show Team Badge if needed
-        checkTeamNotifications();
+        // Update Header & Profile UI
+        document.getElementById('user-firstname').innerText = currentUser.first_name.toUpperCase();
+        
+        const avatarUrl = currentUser.avatar_url || `https://ui-avatars.com/api/?name=${currentUser.first_name}+${currentUser.last_name}&background=6366F1&color=fff`;
+        document.getElementById('header-avatar').src = avatarUrl;
+        document.getElementById('profile-img').src = avatarUrl;
+        
+        document.getElementById('profile-name').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
+        document.getElementById('profile-details').innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
+        document.getElementById('profile-points').innerText = `${currentUser.total_points || 0} Points`;
     }
 }
 
@@ -51,22 +53,20 @@ async function logout() {
     window.location.href = 'login.html';
 }
 
-// --- 2. HOME & NAVIGATION ---
+// --- 2. NAVIGATION & TABS ---
 function setupTabSystem() {
     window.switchTab = function(tabId) {
         // Hide all views
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
         document.getElementById('view-' + tabId).classList.remove('hidden');
         
-        // Update Nav Icons
+        // Update Nav Icons (Premium Style)
         document.querySelectorAll('.nav-item').forEach(el => {
-            el.classList.remove('active', 'text-brand-primary');
-            el.classList.add('text-gray-400');
+            el.classList.remove('active');
         });
         const activeNav = document.getElementById('nav-' + tabId);
         if(activeNav) {
-            activeNav.classList.add('active', 'text-brand-primary');
-            activeNav.classList.remove('text-gray-400');
+            activeNav.classList.add('active');
         }
 
         // Lazy Load Data
@@ -78,7 +78,19 @@ function setupTabSystem() {
 }
 
 async function loadHomeData() {
-    // 1. Categories (Hardcoded for Visuals or Fetched)
+    // 1. Categories (Hardcoded for Visuals)
+    const catGrid = document.getElementById('category-grid');
+    catGrid.innerHTML = `
+        <div onclick="switchTab('search')" class="bg-blue-50 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95 transition-transform">
+            <i data-lucide="users" class="w-8 h-8 text-blue-500"></i>
+            <span class="font-bold text-sm text-blue-700">Team Sports</span>
+        </div>
+        <div onclick="switchTab('search')" class="bg-pink-50 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95 transition-transform">
+            <i data-lucide="user" class="w-8 h-8 text-pink-500"></i>
+            <span class="font-bold text-sm text-pink-700">Solo Events</span>
+        </div>
+    `;
+
     // 2. Live Matches
     const container = document.getElementById('live-matches-container');
     const { data: matches } = await supabaseClient
@@ -88,21 +100,26 @@ async function loadHomeData() {
 
     if(matches && matches.length > 0) {
         container.innerHTML = matches.map(m => `
-            <div class="bg-white border border-red-100 p-4 rounded-2xl shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg animate-pulse">LIVE</div>
-                <div class="flex items-center gap-2 mb-2">
-                    <i data-lucide="${m.sports.icon || 'trophy'}" class="w-4 h-4 text-gray-400"></i>
-                    <span class="text-xs font-bold text-gray-500 uppercase">${m.sports.name}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <div class="text-center w-1/3">
-                        <h4 class="font-black text-lg leading-none">${m.team1_name}</h4>
-                        <span class="text-2xl font-mono font-bold text-brand-primary">${m.score1}</span>
+            <div class="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden card-shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="p-1.5 bg-gray-50 rounded-lg"><i data-lucide="${m.sports.icon || 'trophy'}" class="w-4 h-4 text-gray-500"></i></div>
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">${m.sports.name}</span>
                     </div>
-                    <div class="text-gray-300 font-bold">VS</div>
+                    <span class="flex h-2.5 w-2.5 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center px-2">
                     <div class="text-center w-1/3">
-                        <h4 class="font-black text-lg leading-none">${m.team2_name}</h4>
-                        <span class="text-2xl font-mono font-bold text-brand-primary">${m.score2}</span>
+                        <h4 class="font-black text-xl leading-none text-gray-900 mb-1">${m.team1_name.substring(0, 3).toUpperCase()}</h4>
+                        <span class="text-3xl font-black text-brand-primary">${m.score1}</span>
+                    </div>
+                    <div class="text-gray-300 font-black text-sm">VS</div>
+                    <div class="text-center w-1/3">
+                        <h4 class="font-black text-xl leading-none text-gray-900 mb-1">${m.team2_name.substring(0, 3).toUpperCase()}</h4>
+                        <span class="text-3xl font-black text-brand-primary">${m.score2}</span>
                     </div>
                 </div>
             </div>
@@ -121,17 +138,17 @@ async function loadSportsDirectory() {
 function renderSportsList(list) {
     const container = document.getElementById('sports-list');
     container.innerHTML = list.map(s => `
-        <div onclick="openRegistrationModal('${s.id}')" class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between active:scale-95 transition-transform cursor-pointer">
+        <div onclick="openRegistrationModal('${s.id}')" class="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between active:scale-95 transition-transform cursor-pointer">
             <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-brand-primary">
-                    <i data-lucide="${s.icon || 'trophy'}" class="w-6 h-6"></i>
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-brand-primary shadow-inner">
+                    <i data-lucide="${s.icon || 'trophy'}" class="w-7 h-7"></i>
                 </div>
                 <div>
-                    <h4 class="font-bold text-gray-900">${s.name}</h4>
-                    <span class="text-xs text-gray-400 uppercase font-bold">${s.type} Event</span>
+                    <h4 class="font-bold text-gray-900 text-lg">${s.name}</h4>
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">${s.type} Event</span>
                 </div>
             </div>
-            <div class="bg-gray-100 p-2 rounded-full text-gray-400"><i data-lucide="chevron-right" class="w-5 h-5"></i></div>
+            <div class="bg-gray-50 p-2.5 rounded-full text-gray-400"><i data-lucide="chevron-right" class="w-5 h-5"></i></div>
         </div>
     `).join('');
     lucide.createIcons();
@@ -143,33 +160,36 @@ function filterSports() {
     renderSportsList(filtered);
 }
 
-// --- 4. TEAMS MODULE (NEW) ---
+// --- 4. TEAMS MODULE (NEW LOGIC) ---
 
 window.toggleTeamView = function(view) {
     document.getElementById('team-marketplace').classList.add('hidden');
     document.getElementById('team-locker').classList.add('hidden');
     
-    document.getElementById('btn-team-market').className = "flex-1 py-2 rounded-lg text-xs font-bold text-gray-500 transition-all hover:bg-gray-50";
-    document.getElementById('btn-team-locker').className = "flex-1 py-2 rounded-lg text-xs font-bold text-gray-500 transition-all hover:bg-gray-50";
+    // Reset Buttons
+    const btnMarket = document.getElementById('btn-team-market');
+    const btnLocker = document.getElementById('btn-team-locker');
+    
+    btnMarket.className = "flex-1 py-3 rounded-xl text-xs font-bold text-gray-400 transition-all hover:bg-gray-50";
+    btnLocker.className = "flex-1 py-3 rounded-xl text-xs font-bold text-gray-400 transition-all hover:bg-gray-50";
 
     if(view === 'marketplace') {
         document.getElementById('team-marketplace').classList.remove('hidden');
-        document.getElementById('btn-team-market').className = "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-brand-primary text-white shadow";
+        btnMarket.className = "flex-1 py-3 rounded-xl text-xs font-bold transition-all bg-brand-primary text-white shadow-md";
         loadTeamMarketplace();
     } else {
         document.getElementById('team-locker').classList.remove('hidden');
-        document.getElementById('btn-team-locker').className = "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-brand-primary text-white shadow";
+        btnLocker.className = "flex-1 py-3 rounded-xl text-xs font-bold transition-all bg-brand-primary text-white shadow-md";
         loadTeamLocker();
     }
 }
 
-// A. Marketplace (Join Teams)
+// A. Marketplace (Join Teams - Gender Filtered)
 async function loadTeamMarketplace() {
     const container = document.getElementById('marketplace-list');
-    container.innerHTML = '<p class="text-center text-gray-400 py-4">Finding squads...</p>';
+    container.innerHTML = '<p class="text-center text-gray-400 py-4 text-sm">Scanning for squads...</p>';
 
-    // Load available teams (Open Status)
-    // NOTE: We filter by Gender in JS because complex joins in RLS can be tricky for lists
+    // Fetch Teams
     const { data: teams } = await supabaseClient
         .from('teams')
         .select(`
@@ -180,25 +200,25 @@ async function loadTeamMarketplace() {
         .eq('status', 'Open')
         .order('created_at', { ascending: false });
 
-    // Filter: Show only teams where Captain's Gender matches Current User's Gender
+    // GENDER VALIDATION: Only show teams where Captain matches User
     const validTeams = teams.filter(t => t.captain?.gender === currentUser.gender);
 
     if(!validTeams || validTeams.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-10">No open teams found for your category.</p>';
+        container.innerHTML = '<p class="text-center text-gray-400 py-10 text-sm">No open teams found for your category.</p>';
         return;
     }
 
     container.innerHTML = validTeams.map(t => `
-        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+        <div class="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex justify-between items-center status-open">
             <div>
                 <div class="flex items-center gap-2 mb-1">
-                    <span class="text-[10px] font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-500 uppercase">${t.sports.name}</span>
+                    <span class="text-[10px] font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-500 uppercase tracking-wide">${t.sports.name}</span>
                     <span class="text-[10px] font-bold text-brand-secondary">Capt: ${t.captain.first_name}</span>
                 </div>
-                <h4 class="font-bold text-lg">${t.name}</h4>
-                <p class="text-xs text-gray-400">${t.member_count || 1} / ${t.max_size || '?'} Members</p>
+                <h4 class="font-black text-gray-900 text-lg">${t.name}</h4>
+                <p class="text-xs text-gray-400 font-medium">${t.member_count || 1} / ${t.max_size || '?'} Members</p>
             </div>
-            <button onclick="joinTeam('${t.id}')" class="px-4 py-2 bg-black text-white text-xs font-bold rounded-lg shadow active:scale-95">Join</button>
+            <button onclick="joinTeam('${t.id}')" class="px-5 py-2.5 bg-gray-900 text-white text-xs font-bold rounded-xl shadow-lg active:scale-95 transition-transform">Join</button>
         </div>
     `).join('');
 }
@@ -206,6 +226,8 @@ async function loadTeamMarketplace() {
 window.joinTeam = async function(teamId) {
     if(!confirm("Request to join this team?")) return;
 
+    // Check if already in a team for this sport is complex, relying on Admin/Logic to handle later
+    // Basic insert request
     const { error } = await supabaseClient
         .from('team_members')
         .insert({
@@ -215,18 +237,14 @@ window.joinTeam = async function(teamId) {
         });
 
     if(error) showToast("Request Failed: " + error.message, "error");
-    else showToast("Request Sent! Waiting for Captain.", "success");
+    else showToast("Request Sent! Captain will review.", "success");
 }
 
 // B. My Locker (Manage Teams)
 async function loadTeamLocker() {
     const container = document.getElementById('locker-list');
-    container.innerHTML = '<p class="text-center text-gray-400 py-4">Loading your teams...</p>';
+    container.innerHTML = '<p class="text-center text-gray-400 py-4 text-sm">Loading your locker...</p>';
 
-    // Fetch teams where user is Member OR Captain
-    // We fetch via 'team_members' relation for members, and separate query for owned teams?
-    // Easier: Fetch team_members joined with teams
-    
     const { data: memberships } = await supabaseClient
         .from('team_members')
         .select(`
@@ -239,35 +257,41 @@ async function loadTeamLocker() {
         .eq('user_id', currentUser.id);
 
     if(!memberships || memberships.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-10">You are not in any teams.</p>';
+        container.innerHTML = '<div class="text-center py-10"><i data-lucide="shield-off" class="w-10 h-10 text-gray-300 mx-auto mb-2"></i><p class="text-gray-400 text-sm">No teams found.</p></div>';
+        lucide.createIcons();
         return;
     }
 
     container.innerHTML = memberships.map(m => {
         const t = m.teams;
         const isCaptain = t.captain_id === currentUser.id;
+        const isLocked = t.status === 'Locked';
         
         return `
-        <div class="bg-white p-5 rounded-2xl border ${isCaptain ? 'border-indigo-100' : 'border-gray-100'} shadow-sm relative overflow-hidden">
-            ${isCaptain ? '<div class="absolute top-0 right-0 bg-brand-primary text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">CAPTAIN</div>' : ''}
+        <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden ${isLocked ? 'status-locked' : 'status-open'}">
+            ${isCaptain ? '<div class="absolute top-0 right-0 bg-brand-primary text-white text-[9px] font-bold px-3 py-1.5 rounded-bl-xl tracking-widest">CAPTAIN</div>' : ''}
             
-            <div class="mb-3">
-                <h4 class="font-black text-xl">${t.name}</h4>
-                <p class="text-xs text-gray-500 font-bold uppercase">${t.sports.name} • <span class="${t.status === 'Locked' ? 'text-red-500' : 'text-green-500'}">${t.status}</span></p>
+            <div class="mb-4">
+                <h4 class="font-black text-xl text-gray-900">${t.name}</h4>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">${t.sports.name}</span>
+                    <span class="w-1 h-1 rounded-full bg-gray-300"></span>
+                    <span class="text-xs font-bold ${isLocked ? 'text-red-500' : 'text-green-500'} uppercase">${t.status}</span>
+                </div>
             </div>
 
             <div class="flex gap-2 mt-4">
-                ${isCaptain && t.status === 'Open' ? 
-                    `<button onclick="lockTeam('${t.id}')" class="flex-1 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">Lock Team</button>
-                     <button onclick="deleteTeam('${t.id}')" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` 
+                ${isCaptain && !isLocked ? 
+                    `<button onclick="lockTeam('${t.id}')" class="flex-1 py-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100 hover:bg-red-100 transition-colors">Lock Team</button>
+                     <button onclick="deleteTeam('${t.id}')" class="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` 
                 : ''}
                 
-                ${isCaptain && t.status === 'Locked' ? 
-                    `<button class="flex-1 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">Locked for Match</button>` 
+                ${isCaptain && isLocked ? 
+                    `<button class="flex-1 py-3 bg-gray-50 text-gray-400 text-xs font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"><i data-lucide="lock" class="w-3 h-3"></i> Locked</button>` 
                 : ''}
 
                 ${!isCaptain ? 
-                    `<span class="text-xs bg-gray-50 px-3 py-2 rounded-lg text-gray-500 font-medium w-full text-center">Status: ${m.status}</span>` 
+                    `<div class="w-full bg-gray-50 py-2 rounded-xl text-center text-xs font-bold text-gray-500">Member Status: ${m.status}</div>` 
                 : ''}
             </div>
         </div>`;
@@ -314,14 +338,14 @@ window.createTeam = async function() {
             status: 'Accepted'
         });
         
-        showToast("Team Created!", "success");
+        showToast("Squad Created!", "success");
         closeModal('modal-create-team');
         toggleTeamView('locker');
     }
 }
 
 window.lockTeam = async function(teamId) {
-    if(!confirm("Locking the team means you cannot add/remove members anymore. Proceed?")) return;
+    if(!confirm("Locking the team makes it final. You cannot change members after this. Proceed?")) return;
     
     const { error } = await supabaseClient
         .from('teams')
@@ -336,9 +360,9 @@ window.lockTeam = async function(teamId) {
 }
 
 window.deleteTeam = async function(teamId) {
-    if(!confirm("Delete this team?")) return;
+    if(!confirm("Are you sure you want to delete this team?")) return;
     
-    // RLS policies should handle cascading if setup, but usually manual delete of members first is safer
+    // Cascading delete should handle members via DB, but ensuring clean up
     await supabaseClient.from('team_members').delete().eq('team_id', teamId);
     const { error } = await supabaseClient.from('teams').delete().eq('id', teamId);
 
@@ -359,17 +383,24 @@ window.openRegistrationModal = async function(sportId) {
 
     // 2. Setup Modal UI
     document.getElementById('reg-sport-info').innerHTML = `
-        <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-brand-primary">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-brand-primary shadow-inner">
             <i data-lucide="${sport.icon || 'trophy'}" class="w-6 h-6"></i>
         </div>
         <div>
-            <h4 class="font-bold text-gray-900">${sport.name}</h4>
-            <p class="text-xs text-gray-500">${sport.type} Event</p>
+            <h4 class="font-bold text-gray-900 text-lg">${sport.name}</h4>
+            <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">${sport.type} Event</p>
         </div>
     `;
     
-    // 3. Pre-fill Mobile
+    // 3. Pre-fill Mobile (Require update if missing)
     document.getElementById('reg-mobile').value = currentUser.mobile || '';
+    if(!currentUser.mobile) {
+        document.getElementById('reg-mobile').readOnly = false;
+        document.getElementById('reg-mobile').placeholder = "Enter your mobile no...";
+        document.getElementById('reg-mobile').classList.add('bg-white', 'border', 'border-brand-primary');
+    } else {
+        document.getElementById('reg-mobile').readOnly = true;
+    }
 
     // 4. Handle Team vs Solo
     const teamArea = document.getElementById('team-selection-area');
@@ -392,7 +423,7 @@ window.openRegistrationModal = async function(sportId) {
             .eq('teams.status', 'Locked'); // CRITICAL: Must be locked
 
         if (!myLockedTeams || myLockedTeams.length === 0) {
-            teamSelect.innerHTML = '<option value="">No locked teams found. Create/Lock one first!</option>';
+            teamSelect.innerHTML = '<option value="">No locked teams found. Lock a team first!</option>';
         } else {
             teamSelect.innerHTML = myLockedTeams.map(m => `<option value="${m.teams.id}">${m.teams.name}</option>`).join('');
         }
@@ -408,13 +439,18 @@ window.confirmRegistration = async function() {
     if(!selectedSportForReg) return;
     
     // Check Mobile
-    const mobile = document.getElementById('reg-mobile').value;
-    if(!mobile || mobile.length < 10) return showToast("Valid mobile number required", "error");
+    const mobileInput = document.getElementById('reg-mobile');
+    const mobile = mobileInput.value;
     
-    // If user added mobile here but didn't have it before, save it
-    if(!currentUser.mobile) {
+    if(!mobile || mobile.length < 10) {
+        mobileInput.focus();
+        return showToast("Valid mobile number required", "error");
+    }
+    
+    // Save Mobile if it was missing
+    if(!currentUser.mobile || currentUser.mobile !== mobile) {
         await supabaseClient.from('users').update({ mobile: mobile }).eq('id', currentUser.id);
-        currentUser.mobile = mobile; // update local state
+        currentUser.mobile = mobile; 
     }
 
     let regPayload = {
@@ -427,10 +463,6 @@ window.confirmRegistration = async function() {
     if (selectedSportForReg.type === 'Team') {
         const teamId = document.getElementById('reg-team-select').value;
         if (!teamId) return showToast("You must select a LOCKED team to register.", "error");
-        
-        // We do NOT store team_id in registration (removed from schema). 
-        // We just register the USER. The Admin knows their team via the 'teams' table relation.
-        // HOWEVER, to prevent duplicate registration, we check if they registered for this sport already.
     }
 
     // Check Duplicate
@@ -441,7 +473,7 @@ window.confirmRegistration = async function() {
         .eq('sport_id', selectedSportForReg.id);
         
     if(existing && existing.length > 0) {
-        showToast("You are already registered for this event!", "error");
+        showToast("Already registered for this event!", "error");
         return;
     }
 
@@ -503,31 +535,34 @@ function showToast(msg, type='info') {
     const icon = document.getElementById('toast-icon');
 
     txt.innerText = msg;
-    // Simple icon toggle
     icon.innerHTML = type === 'error' ? '⚠️' : '✅';
     
-    toast.classList.remove('-translate-y-20', 'opacity-0');
+    toast.classList.remove('-translate-y-32', 'opacity-0');
     setTimeout(() => {
-        toast.classList.add('-translate-y-20', 'opacity-0');
+        toast.classList.add('-translate-y-32', 'opacity-0');
     }, 3000);
 }
 
-// Basic stubs for Leaderboard & Registrations lists (Logic same as before)
+// Data Loaders
 async function loadMyRegistrations() {
     const container = document.getElementById('my-registrations-list');
     const { data: regs } = await supabaseClient.from('registrations').select('*, sports(name)').eq('user_id', currentUser.id);
-    if(!regs || regs.length===0) { container.innerHTML = '<p class="text-sm text-gray-400">No active registrations.</p>'; return;}
-    container.innerHTML = regs.map(r => `<div class="p-3 bg-gray-50 rounded-xl text-sm font-bold flex justify-between"><span>${r.sports.name}</span><span class="text-brand-primary">${r.player_status}</span></div>`).join('');
+    if(!regs || regs.length===0) { container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No active registrations.</p>'; return;}
+    container.innerHTML = regs.map(r => `
+        <div class="p-4 bg-gray-50 rounded-2xl text-sm font-bold flex justify-between items-center shadow-sm">
+            <span class="text-gray-900">${r.sports.name}</span>
+            <span class="text-xs bg-white border border-gray-100 px-3 py-1 rounded-full text-brand-primary shadow-sm uppercase tracking-wide">${r.player_status}</span>
+        </div>`).join('');
 }
 
 async function loadLeaderboard() {
     const container = document.getElementById('leaderboard-body');
     const { data: users } = await supabaseClient.from('users').select('first_name, last_name, total_points').order('total_points', {ascending:false}).limit(10);
     container.innerHTML = users.map((u, i) => `
-        <tr class="border-b border-gray-100"><td class="px-4 py-3 font-bold text-gray-400">#${i+1}</td><td class="px-4 py-3 font-bold">${u.first_name} ${u.last_name}</td><td class="px-4 py-3 text-right font-black text-brand-primary">${u.total_points}</td></tr>
+        <tr class="border-b border-gray-50 last:border-none hover:bg-gray-50 transition-colors">
+            <td class="px-5 py-4 font-bold text-gray-400 text-xs">#${i+1}</td>
+            <td class="px-5 py-4 font-bold text-gray-900">${u.first_name} ${u.last_name}</td>
+            <td class="px-5 py-4 text-right font-black text-brand-primary">${u.total_points}</td>
+        </tr>
     `).join('');
-}
-
-function checkTeamNotifications() {
-    // Optional: Check if any pending requests and show badge
 }
