@@ -111,6 +111,7 @@ window.logout = async function() {
 async function fetchMyRegistrations() {
     const { data } = await supabaseClient.from('registrations').select('sport_id').eq('user_id', currentUser.id);
     if(data) {
+        // Store IDs (handling potential number vs string issues later)
         myRegistrations = data.map(r => r.sport_id);
     }
 }
@@ -413,6 +414,7 @@ window.loadTeamMarketplace = async function() {
         return;
     }
 
+    // Calc Seats
     const teamPromises = validTeams.map(async (t) => {
         const { count } = await supabaseClient
             .from('team_members')
@@ -466,6 +468,7 @@ window.viewSquadAndJoin = async function(teamId, sportName) {
         return showToast(`❌ You already joined a ${sportName} team.`, "error");
     }
 
+    // Load Squad
     const { data: members } = await supabaseClient
         .from('team_members')
         .select('status, users(first_name, last_name, class_name)')
