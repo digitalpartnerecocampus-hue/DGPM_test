@@ -1,19 +1,18 @@
 // --- INITIALIZATION ---
-// FIXED: Using 'supabaseClient' to avoid conflict with the global 'supabase' variable from CDN
 const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
 let currentUser = null; 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Init Icons
     lucide.createIcons();
     
-    // 2. Check Theme
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    // 1. Strict Light Mode Default
+    if (localStorage.theme === 'dark') {
         document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
     }
 
-    // 3. Check Session & Load Data
     checkUserAndLoad();
 });
 
@@ -23,19 +22,16 @@ async function checkUserAndLoad() {
     const { data: { session } } = await supabaseClient.auth.getSession();
 
     if (!session) {
-        // Not logged in? Go to login page immediately
         window.location.href = 'login.html';
         return;
     }
 
-    // User is logged in, let's load the dashboard
     await fetchUserProfile(session.user.id);
     setupRealtime();
     fetchData();
 }
 
 async function fetchUserProfile(userId) {
-    // Fetch details from 'public.users' table
     const { data, error } = await supabaseClient
         .from('users')
         .select('*')
@@ -44,7 +40,6 @@ async function fetchUserProfile(userId) {
 
     if (error) {
         console.error("Error fetching profile:", error);
-        // If profile is missing (rare edge case), maybe redirect to login or show error
         return;
     }
 
@@ -55,45 +50,30 @@ async function fetchUserProfile(userId) {
 }
 
 async function fetchData() {
-    // 1. Fetch Sports
-    const { data: sports, error: sportsError } = await supabaseClient
-        .from('sports')
-        .select('*')
-        .order('id');
-    
+    const { data: sports } = await supabaseClient.from('sports').select('*').order('id');
     if (sports) renderRegistrationCards(sports);
 
-    // 2. Fetch Matches
-    const { data: matches, error: matchesError } = await supabaseClient
-        .from('matches')
-        .select('*, sports(name)')
-        .order('start_time', {ascending: true});
-    
+    const { data: matches } = await supabaseClient.from('matches').select('*, sports(name)').order('start_time', {ascending: true});
     if (matches) {
         renderSchedule(matches);
         renderLiveMatches(matches.filter(m => m.status === 'Live'));
     }
 
-    // 3. Fetch Leaderboard
-    const { data: leaderboard, error: lbError } = await supabaseClient
-        .from('leaderboard')
-        .select('*')
-        .limit(10);
-        
+    const { data: leaderboard } = await supabaseClient.from('leaderboard').select('*').limit(10);
     if (leaderboard) renderLeaderboard(leaderboard);
 }
 
 // --- UI RENDERING ---
 
 function renderProfile(user) {
-    // Update Profile UI elements
     const setTxt = (id, txt) => { 
         const el = document.getElementById(id); 
         if(el) el.innerText = txt; 
     };
 
     setTxt('profile-name', `${user.first_name || ''} ${user.last_name || ''}`);
-    setTxt('profile-details', `${user.class_name || 'Student'} • ${user.student_id || ''}`);
+    // Updated Profile Details format
+    setTxt('profile-details', `${user.course || ''} ${user.class_name || ''} • ${user.student_id || ''}`);
     
     setTxt('stat-gold', user.medals_gold || 0);
     setTxt('stat-silver', user.medals_silver || 0);
@@ -204,12 +184,10 @@ function renderLeaderboard(users) {
 
 // --- INTERACTIVE ACTIONS ---
 
-// Realtime Updates
 function setupRealtime() {
     supabaseClient.channel('public:matches')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-            console.log("Match update detected!");
-            fetchData(); // Reload data when any match updates
+            fetchData(); 
         })
         .subscribe();
 }
@@ -219,14 +197,13 @@ window.openReg = function(id, name) {
     document.getElementById('modal-sport-title').innerText = name;
     document.getElementById('reg-modal').classList.remove('hidden');
     
-    // Inject dynamic content
     const container = document.getElementById('reg-form-container');
     container.innerHTML = `
         <div class="py-4">
             <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-xl mb-4 border border-gray-100 dark:border-white/5">
                 <p class="text-xs uppercase font-bold text-gray-400 mb-1">Participant</p>
                 <p class="font-bold text-lg dark:text-white">${currentUser.first_name} ${currentUser.last_name}</p>
-                <p class="text-sm text-gray-500">${currentUser.class_name} • ${currentUser.student_id}</p>
+                <p class="text-sm text-gray-500">${currentUser.course || ''} ${currentUser.class_name || ''} • ${currentUser.student_id}</p>
             </div>
             
             <p class="text-xs text-gray-500 mb-4 text-center">
@@ -251,9 +228,9 @@ window.submitReg = async function(sportId) {
         });
 
     if(error) {
-        alert("Registration Failed: " + error.message);
+        showToast(error.message, 'error');
     } else {
-        alert("Registered Successfully!");
+        showToast("Registered Successfully!", 'success');
         document.getElementById('reg-modal').classList.add('hidden');
         confetti({ particleCount: 150, spread: 60, origin: { y: 0.7 } });
     }
@@ -287,7 +264,6 @@ window.handleAvatarUpload = async function(input) {
         const data = await res.json();
         
         if (data.secure_url) {
-            // Update Supabase
             const { error } = await supabaseClient
                 .from('users')
                 .update({ avatar_url: data.secure_url })
@@ -302,7 +278,7 @@ window.handleAvatarUpload = async function(input) {
         
     } catch (err) {
         console.error("Upload error:", err);
-        alert("Upload failed. Please try again.");
+        showToast("Upload failed. Try again.", 'error');
         img.src = originalSrc;
         img.style.opacity = '1';
     }
@@ -316,7 +292,7 @@ window.switchTab = function(id) {
 
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.remove('active', 'text-brand-primary');
-        btn.classList.add('text-gray-500'); // Reset color
+        btn.classList.add('text-gray-500'); 
     });
     
     const activeBtn = document.getElementById('btn-' + id);
@@ -326,13 +302,11 @@ window.switchTab = function(id) {
     }
 }
 
-// Logout
 window.logout = async function() {
     await supabaseClient.auth.signOut();
     window.location.href = 'login.html';
 }
 
-// Dark Mode Toggle Logic
 const themeBtn = document.getElementById('theme-toggle');
 if(themeBtn) {
     themeBtn.addEventListener('click', () => {
@@ -344,4 +318,36 @@ if(themeBtn) {
             localStorage.theme = 'dark';
         }
     });
+}
+
+// --- TOAST UTILITY (DUPLICATED FOR APP SCOPE) ---
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const content = document.getElementById('toast-content');
+    const iconSpan = document.getElementById('toast-icon');
+    const textSpan = document.getElementById('toast-text');
+
+    content.className = 'px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-3 backdrop-blur-md border';
+
+    if (type === 'success') {
+        content.classList.add('bg-green-500/90', 'text-white', 'border-green-400/30');
+        iconSpan.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5"></i>`;
+    } else if (type === 'error') {
+        content.classList.add('bg-red-500/90', 'text-white', 'border-red-400/30');
+        iconSpan.innerHTML = `<i data-lucide="alert-circle" class="w-5 h-5"></i>`;
+    } else {
+        content.classList.add('bg-gray-800/90', 'text-white', 'border-gray-700/30');
+        iconSpan.innerHTML = `<i data-lucide="info" class="w-5 h-5"></i>`;
+    }
+
+    textSpan.innerText = message;
+    lucide.createIcons();
+
+    container.classList.remove('toast-hidden');
+    container.classList.add('toast-visible');
+
+    setTimeout(() => {
+        container.classList.remove('toast-visible');
+        container.classList.add('toast-hidden');
+    }, 3500);
 }
