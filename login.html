@@ -47,16 +47,16 @@
             <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">Annual Sports Meet</p>
         </div>
 
-        <div id="view-login" class="auth-view space-y-4 overflow-y-auto no-scrollbar">
+        <div id="view-login" class="auth-view space-y-4 overflow-y-auto custom-scrollbar">
             <h3 class="text-lg font-bold border-l-4 border-brand-primary pl-3">Student Login</h3>
             <form onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Email</label>
-                    <input type="email" id="login-email" placeholder="Enter your email" required class="input-field">
+                    <input type="email" id="login-email" placeholder="Enter your email" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                 </div>
                 <div class="relative">
                     <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Password</label>
-                    <input type="password" id="login-pass" placeholder="Enter your password" required class="input-field">
+                    <input type="password" id="login-pass" placeholder="Enter your password" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                     <button type="button" onclick="togglePass('login-pass')" class="absolute right-3 top-8 text-gray-400 hover:text-brand-primary transition"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 </div>
                 
@@ -73,33 +73,33 @@
             </div>
         </div>
 
-        <div id="view-signup" class="auth-view hidden space-y-3 overflow-y-auto no-scrollbar">
+        <div id="view-signup" class="auth-view hidden space-y-3 overflow-y-auto custom-scrollbar">
             <h3 class="text-lg font-bold border-l-4 border-brand-secondary pl-3">New Registration</h3>
             <p class="text-xs text-gray-500 mb-2">Please fill in your correct details for the ID Card.</p>
             
             <form onsubmit="handleSignup(event)" class="space-y-3">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <input type="text" id="reg-fname" placeholder="First Name" required class="input-field">
+                        <input type="text" id="reg-fname" placeholder="First Name" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                     </div>
                     <div>
-                        <input type="text" id="reg-lname" placeholder="Last Name" required class="input-field">
+                        <input type="text" id="reg-lname" placeholder="Last Name" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="reg-sid" placeholder="Student ID" required class="input-field">
-                    <input type="text" id="reg-course" placeholder="Course (e.g. BMS)" required class="input-field">
+                    <input type="text" id="reg-sid" placeholder="Student ID" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
+                    <input type="text" id="reg-course" placeholder="Course (e.g. BMS)" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-class" required class="input-field cursor-pointer">
+                    <select id="reg-class" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all cursor-pointer appearance-none">
                         <option value="" disabled selected>Select Class</option>
                         <option value="FY">FY</option>
                         <option value="SY">SY</option>
                         <option value="TY">TY</option>
                     </select>
-                    <select id="reg-gender" required class="input-field cursor-pointer">
+                    <select id="reg-gender" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all cursor-pointer appearance-none">
                         <option value="" disabled selected>Gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -107,10 +107,12 @@
                     </select>
                 </div>
 
-                <input type="email" id="reg-email" placeholder="Email Address" required class="input-field">
+                <input type="tel" id="reg-mobile" placeholder="Mobile Number (10 digits)" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all" pattern="[0-9]{10}" title="Please enter a valid 10-digit mobile number">
+
+                <input type="email" id="reg-email" placeholder="Email Address" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                 
                 <div class="relative">
-                    <input type="password" id="reg-pass" placeholder="Create Password (Min 6 chars)" required class="input-field" minlength="6">
+                    <input type="password" id="reg-pass" placeholder="Create Password (Min 6 chars)" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all" minlength="6">
                     <button type="button" onclick="togglePass('reg-pass')" class="absolute right-3 top-3 text-gray-400 hover:text-brand-primary transition"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 </div>
                 
@@ -127,7 +129,7 @@
             <p class="text-sm text-gray-500">Enter your registered email address. We'll send you a secure link to reset your password.</p>
             
             <form onsubmit="handleForgotPass(event)" class="space-y-4">
-                <input type="email" id="forgot-email" placeholder="Email Address" required class="input-field">
+                <input type="email" id="forgot-email" placeholder="Email Address" required class="input-field w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-brand-primary transition-all">
                 <button type="submit" class="w-full py-3.5 bg-gray-800 dark:bg-white dark:text-black text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform transform hover:-translate-y-0.5">Send Reset Link</button>
             </form>
 
