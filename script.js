@@ -147,7 +147,7 @@ function setupTabSystem() {
     }
 }
 
-// --- 4. SCHEDULE MODULE (FIXED LAYOUT) ---
+// --- 4. SCHEDULE MODULE (GAP FIXED) ---
 
 window.filterSchedule = function(view) {
     currentScheduleView = view;
@@ -172,7 +172,10 @@ window.filterSchedule = function(view) {
 
 async function loadSchedule() {
     const container = document.getElementById('schedule-list');
-    container.innerHTML = '<div class="py-20 flex justify-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div></div>';
+    
+    // Default: Show Loading state with centering
+    container.className = 'flex flex-col items-center justify-center py-20 text-center';
+    container.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>';
 
     const { data: matches } = await supabaseClient
         .from('matches')
@@ -181,12 +184,10 @@ async function loadSchedule() {
 
     if (!matches || matches.length === 0) {
         container.innerHTML = `
-            <div class="flex flex-col items-center justify-center py-20 text-center">
-                <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
-                    <i data-lucide="calendar-off" class="w-8 h-8 text-gray-400"></i>
-                </div>
-                <p class="text-gray-400 font-medium">No matches found.</p>
-            </div>`;
+            <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
+                <i data-lucide="calendar-off" class="w-8 h-8 text-gray-400"></i>
+            </div>
+            <p class="text-gray-400 font-medium">No matches found.</p>`;
         lucide.createIcons();
         return;
     }
@@ -205,20 +206,22 @@ async function loadSchedule() {
     }
 
     if (filteredMatches.length === 0) {
-        container.innerHTML = `<p class="text-center text-gray-400 py-10 font-medium">No ${currentScheduleView} matches.</p>`;
+        // Keep centered layout for empty state
+        container.innerHTML = `<p class="text-gray-400 font-medium">No ${currentScheduleView} matches.</p>`;
         return;
     }
+
+    // --- FIX: Remove gap by resetting container classes when data exists ---
+    container.className = 'space-y-3 pb-24'; // Removed py-20, text-center, etc.
 
     container.innerHTML = filteredMatches.map(m => {
         const isLive = m.is_live === true || m.status === 'Live';
         const isCompleted = m.status === 'Completed' || m.status === 'Finished';
         
-        // Date Formatting
         const dateObj = new Date(m.start_time);
         const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric'});
 
-        // Center Content (Score or VS)
         let centerContent = '';
         if (isCompleted || isLive) {
             centerContent = `<span class="font-mono font-black text-xl tracking-widest ${isLive ? 'text-red-500' : 'text-brand-primary'}">${m.score1 || 0} - ${m.score2 || 0}</span>`;
@@ -226,14 +229,13 @@ async function loadSchedule() {
             centerContent = `<span class="font-black text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md">VS</span>`;
         }
 
-        // Status Badge
         let badge = '';
         if (isLive) badge = `<span class="absolute top-4 right-4 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full border border-red-100 dark:border-red-900"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> LIVE</span>`;
         else if (isCompleted) badge = `<span class="absolute top-4 right-4 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">FINAL</span>`;
         else badge = `<span class="absolute top-4 right-4 text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">${dateStr}</span>`;
 
         return `
-        <div class="relative w-full bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm mb-3">
+        <div class="relative w-full bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
             ${badge}
             
             <div class="flex items-center gap-2 mb-6">
@@ -518,10 +520,7 @@ window.openManageTeamModal = async function(teamId, teamName, isLocked) {
          lockBtn.id = 'btn-lock-dynamic';
          lockBtn.className = "w-full py-3 mt-4 mb-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs border border-red-100 dark:border-red-900 flex items-center justify-center gap-2";
          lockBtn.innerHTML = '<i data-lucide="lock" class="w-3 h-3"></i> LOCK TEAM PERMANENTLY';
-         
-         // Use the promptLockTeam logic instead of direct lockTeam
          lockBtn.onclick = () => window.promptLockTeam(teamId);
-         
          memList.parentElement.parentElement.insertBefore(lockBtn, memList.parentElement.nextElementSibling);
     }
 
