@@ -120,10 +120,12 @@ async function fetchMyRegistrations() {
 // --- 3. NAVIGATION & TABS ---
 function setupTabSystem() {
     window.switchTab = function(tabId) {
+        // Hide all views
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
         const targetView = document.getElementById('view-' + tabId);
         if(targetView) targetView.classList.remove('hidden');
         
+        // Update Nav Icons
         document.querySelectorAll('.nav-item').forEach(el => {
             el.classList.remove('active', 'text-brand-primary');
             el.classList.add('text-gray-400', 'dark:text-gray-500');
@@ -216,44 +218,42 @@ async function loadSchedule() {
         const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric'});
 
-        // Score Display Logic
+        // Center Content (Score or VS)
         let centerContent = '';
         if (isCompleted || isLive) {
             centerContent = `<span class="font-mono font-black text-xl tracking-widest ${isLive ? 'text-red-500' : 'text-brand-primary'}">${m.score1 || 0} - ${m.score2 || 0}</span>`;
         } else {
-            // VS Badge
             centerContent = `<span class="font-black text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md">VS</span>`;
         }
 
-        // Status Badge (Top Right)
+        // Status Badge
         let badge = '';
         if (isLive) badge = `<span class="absolute top-4 right-4 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full border border-red-100 dark:border-red-900"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> LIVE</span>`;
         else if (isCompleted) badge = `<span class="absolute top-4 right-4 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">FINAL</span>`;
         else badge = `<span class="absolute top-4 right-4 text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">${dateStr}</span>`;
 
-        // FIXED LAYOUT STRUCTURE
         return `
         <div class="relative w-full bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm mb-3">
             ${badge}
             
             <div class="flex items-center gap-2 mb-6">
-                <div class="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                    <i data-lucide="${m.sports.icon || 'trophy'}" class="w-4 h-4 text-brand-primary"></i>
+                <div class="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-brand-primary dark:text-white">
+                    <i data-lucide="${m.sports.icon || 'trophy'}" class="w-4 h-4"></i>
                 </div>
                 <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">${m.sports.name}</span>
             </div>
 
-            <div class="flex justify-between items-center w-full">
-                <div class="w-[40%] text-right pr-2">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex-1 text-right pr-4">
                     <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight break-words">${m.team1_name}</h4>
                 </div>
 
-                <div class="w-[20%] flex flex-col items-center justify-center relative shrink-0">
+                <div class="shrink-0 flex flex-col items-center w-16">
                     ${centerContent}
                     ${!isCompleted && !isLive ? `<span class="text-[10px] font-bold text-gray-400 mt-1.5 whitespace-nowrap">${timeStr}</span>` : ''}
                 </div>
 
-                <div class="w-[40%] text-left pl-2">
+                <div class="flex-1 text-left pl-4">
                     <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight break-words">${m.team2_name}</h4>
                 </div>
             </div>
@@ -518,7 +518,10 @@ window.openManageTeamModal = async function(teamId, teamName, isLocked) {
          lockBtn.id = 'btn-lock-dynamic';
          lockBtn.className = "w-full py-3 mt-4 mb-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs border border-red-100 dark:border-red-900 flex items-center justify-center gap-2";
          lockBtn.innerHTML = '<i data-lucide="lock" class="w-3 h-3"></i> LOCK TEAM PERMANENTLY';
+         
+         // Use the promptLockTeam logic instead of direct lockTeam
          lockBtn.onclick = () => window.promptLockTeam(teamId);
+         
          memList.parentElement.parentElement.insertBefore(lockBtn, memList.parentElement.nextElementSibling);
     }
 
@@ -665,41 +668,15 @@ window.updateProfile = async function() {
     }
 }
 
-// --- PROFILE HISTORY ---
-async function loadProfileGames() {
-    const container = document.getElementById('my-registrations-list');
-    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Loading history...</p>';
-
-    const { data: regs } = await supabaseClient
-        .from('registrations')
-        .select('*, sports(name, icon)')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
-
-    if(!regs || regs.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No registered games found.</p>';
-        return;
-    }
-
-    container.innerHTML = regs.map(r => `
-        <div class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-indigo-50 dark:bg-indigo-900 rounded-lg text-brand-primary dark:text-white">
-                    <i data-lucide="${r.sports.icon || 'trophy'}" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
-                    <p class="text-[10px] text-gray-400 uppercase font-bold">Status: ${r.player_status}</p>
-                </div>
-            </div>
-            <span class="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-3 py-1 rounded-full font-bold">Registered</span>
-        </div>
-    `).join('');
-    lucide.createIcons();
+// --- UTILS ---
+async function getSportIdByName(name) {
+    const { data } = await supabaseClient.from('sports').select('id').eq('name', name).single();
+    return data?.id;
 }
 
-// --- UTILS: TOAST & MODALS ---
+window.closeModal = id => document.getElementById(id).classList.add('hidden');
 
+// --- TOAST & MODALS ---
 window.showToast = function(msg, type='info') {
     const t = document.getElementById('toast-container');
     const msgEl = document.getElementById('toast-msg');
@@ -738,13 +715,6 @@ function showConfirmDialog(title, msg, onConfirm) {
     confirmCallback = onConfirm;
     document.getElementById('modal-confirm').classList.remove('hidden');
 }
-
-async function getSportIdByName(name) {
-    const { data } = await supabaseClient.from('sports').select('id').eq('name', name).single();
-    return data?.id;
-}
-
-window.closeModal = id => document.getElementById(id).classList.add('hidden');
 
 // --- REGISTRATION MODAL ---
 window.openRegistrationModal = async function(id) {
