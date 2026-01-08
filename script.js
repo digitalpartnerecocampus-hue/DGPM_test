@@ -4,8 +4,9 @@ let currentUser = null;
 let allSports = [];
 let myRegistrations = []; // Array of Sport IDs the user has registered for
 let selectedSportForReg = null;
+let currentScheduleView = 'upcoming'; // 'upcoming' or 'results'
 
-// Fallback capacities if DB fetch fails
+// Default Capacities (Fallback if DB doesn't specify)
 const DEFAULT_CAPACITIES = {
     'Cricket': 11,
     'Box Cricket': 8,
@@ -18,19 +19,20 @@ const DEFAULT_CAPACITIES = {
     'default': 5
 };
 
+// New Default Avatar URL
+const DEFAULT_AVATAR = "https://t4.ftcdn.net/jpg/05/89/93/27/360_F_589932782_vQAEAZhHnq1QCGu5ikwrYaQD0Mmurm0N.jpg";
+
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
     initTheme();
     await checkAuth();
     
-    // Initial Load
     setupTabSystem();
-    // Load home data by default
-    window.switchTab('home');
+    setupConfirmModal(); // Initialize custom modal listeners
     
-    // Setup Confirm Modal Listeners
-    setupConfirmModal();
+    // Default Load
+    window.switchTab('home');
 });
 
 // --- 1. THEME LOGIC ---
@@ -88,8 +90,6 @@ async function checkAuth() {
 }
 
 function updateProfileUI() {
-    // New Default Avatar
-    const DEFAULT_AVATAR = "https://t4.ftcdn.net/jpg/05/89/93/27/360_F_589932782_vQAEAZhHnq1QCGu5ikwrYaQD0Mmurm0N.jpg";
     const avatarUrl = currentUser.avatar_url || DEFAULT_AVATAR;
     
     const imgEl = document.getElementById('profile-img');
@@ -117,7 +117,7 @@ async function fetchMyRegistrations() {
     }
 }
 
-// --- 3. NAVIGATION ---
+// --- 3. NAVIGATION & TABS ---
 function setupTabSystem() {
     window.switchTab = function(tabId) {
         // Hide all views
@@ -140,21 +140,43 @@ function setupTabSystem() {
         // Logic routing
         if(tabId === 'register') window.toggleRegisterView('new');
         if(tabId === 'teams') window.toggleTeamView('marketplace');
-        if(tabId === 'schedule') loadSchedule();
+        if(tabId === 'schedule') {
+            window.filterSchedule('upcoming'); // Default view
+        }
         if(tabId === 'profile') loadProfileGames();
     }
 }
 
-// --- 4. DATA LOADERS ---
+// --- 4. SCHEDULE MODULE ---
 
-// Schedule
+window.filterSchedule = function(view) {
+    currentScheduleView = view;
+    
+    // Update Button Styles
+    const btnUpcoming = document.getElementById('btn-schedule-upcoming');
+    const btnResults = document.getElementById('btn-schedule-results');
+    
+    const activeClass = "bg-white dark:bg-gray-700 rounded shadow-sm text-brand-primary dark:text-white font-bold";
+    const inactiveClass = "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200";
+
+    if(view === 'upcoming') {
+        btnUpcoming.className = `px-4 py-1.5 transition-all ${activeClass}`;
+        btnResults.className = `px-4 py-1.5 transition-all ${inactiveClass}`;
+    } else {
+        btnUpcoming.className = `px-4 py-1.5 transition-all ${inactiveClass}`;
+        btnResults.className = `px-4 py-1.5 transition-all ${activeClass}`;
+    }
+
+    loadSchedule();
+}
+
 async function loadSchedule() {
     const container = document.getElementById('schedule-list');
-    container.innerHTML = '<p class="text-center text-gray-400 py-10">Loading matches...</p>';
+    container.innerHTML = '<div class="py-20 flex justify-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div></div>';
 
     const { data: matches } = await supabaseClient
         .from('matches')
-        .select('*, sports(name)')
+        .select('*, sports(name, icon)')
         .order('start_time', { ascending: true });
 
     if (!matches || matches.length === 0) {
@@ -163,172 +185,79 @@ async function loadSchedule() {
                 <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
                     <i data-lucide="calendar-off" class="w-8 h-8 text-gray-400"></i>
                 </div>
-                <p class="text-gray-400 font-medium">No matches scheduled.</p>
+                <p class="text-gray-400 font-medium">No matches found.</p>
             </div>`;
         lucide.createIcons();
         return;
     }
 
-    container.innerHTML = matches.map(m => `
-        <div class="w-full bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-3">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-bold text-gray-400 uppercase">${m.sports.name}</span>
-                <span class="text-[10px] font-bold ${m.status === 'Live' ? 'text-red-500 animate-pulse' : 'text-blue-500'}">${m.status}</span>
-            </div>
-            <div class="flex justify-between items-center">
-                <span class="font-bold text-sm w-1/3 text-gray-900 dark:text-white">${m.team1_name}</span>
-                <span class="font-mono font-black text-lg text-brand-primary">${m.score1} - ${m.score2}</span>
-                <span class="font-bold text-sm w-1/3 text-right text-gray-900 dark:text-white">${m.team2_name}</span>
-            </div>
-        </div>
-    `).join('');
-    lucide.createIcons();
-}
+    // Filter Logic
+    let filteredMatches = [];
+    if(currentScheduleView === 'upcoming') {
+        filteredMatches = matches.filter(m => m.status === 'Scheduled' || m.status === 'Live');
+    } else {
+        filteredMatches = matches.filter(m => m.status === 'Completed');
+    }
 
-// Profile History
-async function loadProfileGames() {
-    const container = document.getElementById('my-registrations-list');
-    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Loading history...</p>';
-
-    const { data: regs } = await supabaseClient
-        .from('registrations')
-        .select('*, sports(name, icon)')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
-
-    if(!regs || regs.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No registered games found.</p>';
+    if (filteredMatches.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-400 py-10 font-medium">No ${currentScheduleView} matches.</p>`;
         return;
     }
 
-    container.innerHTML = regs.map(r => `
-        <div class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-indigo-50 dark:bg-indigo-900 rounded-lg text-brand-primary dark:text-white">
-                    <i data-lucide="${r.sports.icon || 'trophy'}" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
-                    <p class="text-[10px] text-gray-400 uppercase font-bold">Status: ${r.player_status}</p>
-                </div>
-            </div>
-            <span class="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-3 py-1 rounded-full font-bold">Registered</span>
-        </div>
-    `).join('');
-    lucide.createIcons();
-}
+    container.innerHTML = filteredMatches.map(m => {
+        const isLive = m.status === 'Live';
+        const isCompleted = m.status === 'Completed';
+        
+        // Date Formatting
+        const dateObj = new Date(m.start_time);
+        const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric'});
 
-// --- 5. REGISTRATION VIEW ---
+        // Score Display Logic
+        let centerContent = '';
+        if (isCompleted || isLive) {
+            centerContent = `<span class="font-mono font-black text-xl tracking-widest ${isLive ? 'text-red-500' : 'text-brand-primary'}">${m.score1} - ${m.score2}</span>`;
+        } else {
+            centerContent = `<span class="font-black text-xs text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">VS</span>`;
+        }
 
-window.toggleRegisterView = function(view) {
-    const btnNew = document.getElementById('btn-reg-new');
-    const btnHist = document.getElementById('btn-reg-history');
-    const sectionNew = document.getElementById('reg-section-new');
-    const sectionHist = document.getElementById('reg-section-history');
-
-    btnNew.className = "flex-1 py-3 rounded-lg transition-all text-gray-500 dark:text-gray-400";
-    btnHist.className = "flex-1 py-3 rounded-lg transition-all text-gray-500 dark:text-gray-400";
-
-    if (view === 'new') {
-        sectionNew.classList.remove('hidden');
-        sectionHist.classList.add('hidden');
-        btnNew.className = "flex-1 py-3 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
-        loadSportsDirectory(); 
-    } else {
-        sectionNew.classList.add('hidden');
-        sectionHist.classList.remove('hidden');
-        btnHist.className = "flex-1 py-3 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
-        loadMyHistory();
-    }
-}
-
-async function loadSportsDirectory() {
-    const { data: sports } = await supabaseClient.from('sports').select('*').eq('status', 'Open');
-    allSports = sports;
-    renderSportsList(sports);
-}
-
-function renderSportsList(list) {
-    const container = document.getElementById('sports-list');
-    const registeredIDs = myRegistrations; 
-
-    container.innerHTML = list.map(s => {
-        const isRegistered = registeredIDs.includes(s.id);
-        const cardClass = isRegistered 
-            ? "opacity-60 grayscale pointer-events-none cursor-not-allowed" 
-            : "active:scale-95 cursor-pointer";
-        const badgeColor = isRegistered 
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" 
-            : "bg-green-50 text-green-500 dark:bg-green-900/20 dark:text-green-400";
-        const badgeText = isRegistered ? "REGISTERED" : "OPEN";
-        const clickAction = isRegistered ? "" : `onclick="window.openRegistrationModal('${s.id}')"`;
+        // Status Badge
+        let badge = '';
+        if (isLive) badge = `<span class="absolute top-3 right-3 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full border border-red-100 dark:border-red-900"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> LIVE</span>`;
+        else if (isCompleted) badge = `<span class="absolute top-3 right-3 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">FINAL</span>`;
+        else badge = `<span class="absolute top-3 right-3 text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">${dateStr}</span>`;
 
         return `
-        <div ${clickAction} class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center text-center gap-3 transition-transform ${cardClass}">
-            <div class="p-3 bg-indigo-50 dark:bg-indigo-900 rounded-full">
-                <i data-lucide="${s.icon || 'trophy'}" class="w-6 h-6 text-brand-primary dark:text-white"></i>
+        <div class="relative w-full bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm mb-3">
+            ${badge}
+            
+            <div class="flex items-center gap-2 mb-4">
+                <i data-lucide="${m.sports.icon || 'trophy'}" class="w-4 h-4 text-brand-primary"></i>
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">${m.sports.name}</span>
             </div>
-            <div class="flex-1 flex flex-col justify-center">
-                <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">${s.name}</h4>
-                <p class="text-xs text-gray-400 font-medium mt-1">${s.type}</p>
-            </div>
-            <span class="${badgeColor} px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">${badgeText}</span>
-        </div>`;
-    }).join('');
-    lucide.createIcons();
-}
 
-async function loadMyHistory() {
-    const container = document.getElementById('history-list');
-    container.innerHTML = '<p class="text-center text-gray-400 py-10">Fetching history...</p>';
-
-    const { data: regs, error } = await supabaseClient
-        .from('registrations')
-        .select('*, sports(name, icon)')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        container.innerHTML = '<p class="text-center text-red-400 py-10">Error loading history.</p>';
-        return;
-    }
-
-    if (!regs || regs.length === 0) {
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center py-10 text-center">
-                <div class="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-2">
-                    <i data-lucide="history" class="w-6 h-6 text-gray-400"></i>
+            <div class="flex justify-between items-center px-2">
+                <div class="text-center w-1/3">
+                    <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight break-words">${m.team1_name}</h4>
                 </div>
-                <p class="text-gray-400 text-sm">No registration history.</p>
-            </div>`;
-        lucide.createIcons();
-        return;
-    }
 
-    container.innerHTML = regs.map(r => `
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between mb-2">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-indigo-50 dark:bg-indigo-900 rounded-lg text-brand-primary dark:text-white">
-                    <i data-lucide="${r.sports.icon || 'trophy'}" class="w-5 h-5"></i>
+                <div class="flex flex-col items-center justify-center w-1/3">
+                    ${centerContent}
+                    ${!isCompleted && !isLive ? `<span class="text-[10px] font-bold text-gray-400 mt-1">${timeStr}</span>` : ''}
                 </div>
-                <div>
-                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
-                    <p class="text-[10px] text-gray-400 font-medium">${new Date(r.created_at).toLocaleDateString()}</p>
+
+                <div class="text-center w-1/3">
+                    <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight break-words">${m.team2_name}</h4>
                 </div>
             </div>
-            <span class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded text-xs font-bold">Registered</span>
         </div>
-    `).join('');
+        `;
+    }).join('');
+    
     lucide.createIcons();
 }
 
-window.filterSports = function() {
-    const q = document.getElementById('search-input').value.toLowerCase();
-    const filtered = allSports.filter(s => s.name.toLowerCase().includes(q));
-    renderSportsList(filtered);
-}
-
-// --- 6. TEAMS MODULE ---
+// --- 5. TEAMS MODULE ---
 
 window.toggleTeamView = function(view) {
     document.getElementById('team-marketplace').classList.add('hidden');
@@ -343,10 +272,7 @@ window.toggleTeamView = function(view) {
     if(view === 'marketplace') {
         document.getElementById('team-marketplace').classList.remove('hidden');
         btnMarket.className = "flex-1 py-2 rounded shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
-        loadTeamSportsFilter().then(() => {
-            window.loadTeamMarketplace();
-        });
-
+        loadTeamSportsFilter().then(() => window.loadTeamMarketplace());
     } else {
         document.getElementById('team-locker').classList.remove('hidden');
         btnLocker.className = "flex-1 py-2 rounded shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
@@ -381,7 +307,7 @@ window.loadTeamMarketplace = async function() {
 
     let query = supabaseClient
         .from('teams')
-        .select(`*, sports(name, team_size), captain:users!captain_id(first_name, gender)`)
+        .select(`*, sports(name), captain:users!captain_id(first_name, gender)`)
         .eq('status', 'Open')
         .order('created_at', { ascending: false });
 
@@ -412,8 +338,7 @@ window.loadTeamMarketplace = async function() {
             .eq('team_id', t.id)
             .eq('status', 'Accepted');
             
-        // Use team_size from DB, or fallback
-        const max = t.sports.team_size || DEFAULT_CAPACITIES['default'];
+        const max = SPORT_CAPACITIES[t.sports.name] || SPORT_CAPACITIES['default'];
         const seatsLeft = max - (count || 0);
         return { ...t, seatsLeft };
     });
@@ -444,11 +369,12 @@ window.loadTeamMarketplace = async function() {
 window.viewSquadAndJoin = async function(teamId, sportName) {
     const sportId = await getSportIdByName(sportName);
     
-    // Validation
+    // VALIDATION 1: Must be Registered
     if(!myRegistrations.includes(sportId)) {
         return showToast(`⚠️ You must Register for ${sportName} first!`, "error");
     }
 
+    // VALIDATION 2: One team per sport
     const { data: existingTeam } = await supabaseClient.from('team_members')
         .select('team_id, teams!inner(sport_id)')
         .eq('user_id', currentUser.id)
@@ -604,58 +530,49 @@ window.handleRequest = async function(memberId, status, teamId) {
     window.openManageTeamModal(teamId, tName, false);
 }
 
-// --- NEW LOCK TEAM LOGIC ---
+// 1. SMART LOCK LOGIC
 window.promptLockTeam = async function(teamId) {
-    // 1. Fetch current Accepted members count
-    const { count } = await supabaseClient.from('team_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('team_id', teamId)
-        .eq('status', 'Accepted');
+    // Check Size
+    const { count } = await supabaseClient.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'Accepted');
+    const { data } = await supabaseClient.from('teams').select('sports(team_size, name)').eq('id', teamId).single();
     
-    // 2. Fetch required size from teams -> sports
-    const { data: teamData } = await supabaseClient.from('teams')
-        .select('sports(team_size, name)')
-        .eq('id', teamId)
-        .single();
-        
-    const requiredSize = teamData?.sports?.team_size || DEFAULT_CAPACITIES[teamData?.sports?.name] || 5;
+    const required = data?.sports?.team_size || DEFAULT_CAPACITIES[data?.sports?.name] || 5;
     
-    // 3. Validation
-    if(count < requiredSize) {
-        return showToast(`⚠️ Incomplete Squad! Need ${requiredSize} players. Current: ${count}`, "error");
-    }
+    if(count < required) return showToast(`⚠️ Squad incomplete! Need ${required} players.`, "error");
 
-    // 4. Show Confirm Modal
     showConfirmDialog(
-        "Lock Team?",
-        "⚠️ Locking is FINAL. You cannot add/remove members after this. Proceed?",
-        () => executeLockTeam(teamId)
+        "Lock Team?", 
+        "⚠️ This is FINAL. No members can be added or removed after this.", 
+        async () => {
+            await supabaseClient.from('teams').update({ status: 'Locked' }).eq('id', teamId);
+            showToast("Team Locked!", "success");
+            window.closeModal('modal-manage-team');
+            window.closeModal('modal-confirm');
+            window.loadTeamLocker();
+        }
     );
 }
 
-async function executeLockTeam(teamId) {
-    await supabaseClient.from('teams').update({ status: 'Locked' }).eq('id', teamId);
-    showToast("Team Locked Successfully!", "success");
-    window.closeModal('modal-manage-team');
-    window.closeModal('modal-confirm');
-    window.loadTeamLocker();
-}
-
-// --- DELETE TEAM LOGIC ---
+// 2. DELETE LOGIC
 window.promptDeleteTeam = function(teamId) {
-    showConfirmDialog(
-        "Delete Team?",
-        "Are you sure you want to delete this team? This action cannot be undone.",
-        () => executeDeleteTeam(teamId)
-    );
+    showConfirmDialog("Delete Team?", "Are you sure? This cannot be undone.", async () => {
+        await supabaseClient.from('team_members').delete().eq('team_id', teamId);
+        await supabaseClient.from('teams').delete().eq('id', teamId);
+        showToast("Team Deleted", "success");
+        window.closeModal('modal-confirm');
+        window.loadTeamLocker();
+    });
 }
 
-async function executeDeleteTeam(teamId) {
-    await supabaseClient.from('team_members').delete().eq('team_id', teamId);
-    await supabaseClient.from('teams').delete().eq('id', teamId);
-    showToast("Team Deleted", "success");
-    window.closeModal('modal-confirm');
-    window.loadTeamLocker();
+// 3. REMOVE MEMBER
+window.removeMember = function(memberId, teamId) {
+    showConfirmDialog("Remove Player?", "Are you sure you want to remove this player?", async () => {
+        await supabaseClient.from('team_members').delete().eq('id', memberId);
+        window.closeModal('modal-confirm');
+        // Refresh modal
+        const tName = document.getElementById('manage-team-title').innerText.replace("Manage: ", "");
+        window.openManageTeamModal(teamId, tName, false);
+    });
 }
 
 // E. CREATE TEAM
@@ -697,6 +614,126 @@ window.createTeam = async function() {
     }
 }
 
+// --- 5. REGISTRATION VIEW ---
+
+window.toggleRegisterView = function(view) {
+    const btnNew = document.getElementById('btn-reg-new');
+    const btnHist = document.getElementById('btn-reg-history');
+    
+    const sectionNew = document.getElementById('reg-section-new');
+    const sectionHist = document.getElementById('reg-section-history');
+
+    // Reset styles
+    btnNew.className = "flex-1 py-3 rounded-lg transition-all text-gray-500 dark:text-gray-400";
+    btnHist.className = "flex-1 py-3 rounded-lg transition-all text-gray-500 dark:text-gray-400";
+
+    if (view === 'new') {
+        sectionNew.classList.remove('hidden');
+        sectionHist.classList.add('hidden');
+        // Active Style
+        btnNew.className = "flex-1 py-3 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
+        loadSportsDirectory(); 
+    } else {
+        sectionNew.classList.add('hidden');
+        sectionHist.classList.remove('hidden');
+        // Active Style
+        btnHist.className = "flex-1 py-3 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-brand-primary dark:text-white transition-all font-bold";
+        loadMyHistory();
+    }
+}
+
+async function loadSportsDirectory() {
+    const { data: sports } = await supabaseClient.from('sports').select('*').eq('status', 'Open');
+    allSports = sports;
+    renderSportsList(sports);
+}
+
+function renderSportsList(list) {
+    const container = document.getElementById('sports-list');
+    const registeredIDs = myRegistrations; 
+
+    container.innerHTML = list.map(s => {
+        const isRegistered = registeredIDs.includes(s.id);
+        
+        const cardClass = isRegistered 
+            ? "opacity-60 grayscale pointer-events-none cursor-not-allowed" 
+            : "active:scale-95 cursor-pointer hover:shadow-md";
+            
+        const badgeColor = isRegistered 
+            ? "text-gray-400 bg-gray-100 dark:bg-gray-700" 
+            : "text-green-500 bg-green-50 dark:text-green-400 dark:bg-green-900/20";
+        const badgeText = isRegistered ? "DONE" : "OPEN";
+
+        const clickAction = isRegistered ? "" : `onclick="window.openRegistrationModal('${s.id}')"`;
+
+        return `
+        <div ${clickAction} class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm relative flex flex-col justify-between h-32 transition-all ${cardClass}">
+            <div class="flex justify-between items-start">
+                <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/50 rounded-xl text-brand-primary dark:text-white">
+                    <i data-lucide="${s.icon || 'trophy'}" class="w-6 h-6"></i>
+                </div>
+                <span class="${badgeColor} text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">${badgeText}</span>
+            </div>
+            <div class="mt-2">
+                <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">${s.name}</h4>
+                <p class="text-xs text-gray-400 font-medium mt-0.5">${s.type}</p>
+            </div>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
+}
+
+async function loadMyHistory() {
+    const container = document.getElementById('history-list');
+    container.innerHTML = '<p class="text-center text-gray-400 py-10">Fetching history...</p>';
+
+    const { data: regs, error } = await supabaseClient
+        .from('registrations')
+        .select('*, sports(name, icon)')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error(error);
+        container.innerHTML = '<p class="text-center text-red-400 py-10">Error loading history.</p>';
+        return;
+    }
+
+    if (!regs || regs.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-10 text-center">
+                <div class="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-2">
+                    <i data-lucide="history" class="w-6 h-6 text-gray-400"></i>
+                </div>
+                <p class="text-gray-400 text-sm">No registration history.</p>
+            </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = regs.map(r => `
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-50 dark:bg-indigo-900 rounded-lg text-brand-primary dark:text-white">
+                    <i data-lucide="${r.sports.icon || 'trophy'}" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
+                    <p class="text-[10px] text-gray-400 font-medium">${new Date(r.created_at).toLocaleDateString()}</p>
+                </div>
+            </div>
+            <span class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded text-xs font-bold">Registered</span>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+window.filterSports = function() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    const filtered = allSports.filter(s => s.name.toLowerCase().includes(q));
+    renderSportsList(filtered);
+}
+
 // --- SETTINGS ---
 window.openSettingsModal = function() {
     document.getElementById('edit-fname').value = currentUser.first_name || '';
@@ -733,9 +770,41 @@ window.updateProfile = async function() {
     }
 }
 
-// --- UTILS & HELPERS ---
+// --- PROFILE HISTORY ---
+async function loadProfileGames() {
+    const container = document.getElementById('my-registrations-list');
+    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Loading history...</p>';
 
-// 1. Toast
+    const { data: regs } = await supabaseClient
+        .from('registrations')
+        .select('*, sports(name, icon)')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if(!regs || regs.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No registered games found.</p>';
+        return;
+    }
+
+    container.innerHTML = regs.map(r => `
+        <div class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-brand-primary dark:text-white">
+                    <i data-lucide="${r.sports.icon || 'trophy'}" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Status: ${r.player_status}</p>
+                </div>
+            </div>
+            <span class="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-3 py-1 rounded-full font-bold">Registered</span>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+// --- UTILS: TOAST & MODALS ---
+
 window.showToast = function(msg, type='info') {
     const t = document.getElementById('toast-container');
     const msgEl = document.getElementById('toast-msg');
@@ -753,25 +822,19 @@ window.showToast = function(msg, type='info') {
     // Important: Re-scan DOM to replace <i> with <svg>
     lucide.createIcons();
     
-    t.classList.add('toast-visible');
+    t.classList.remove('opacity-0', 'pointer-events-none');
+    t.classList.add('toast-visible'); // Animates up
+    
     setTimeout(() => {
         t.classList.remove('toast-visible');
+        t.classList.add('opacity-0', 'pointer-events-none');
     }, 3000);
 }
 
-// 2. Custom Confirm Dialog (App-Like)
 let confirmCallback = null;
-
 function setupConfirmModal() {
-    document.getElementById('btn-confirm-yes').onclick = () => {
-        if(confirmCallback) confirmCallback();
-        // Modal closing is handled inside callback
-    };
-    
-    document.getElementById('btn-confirm-cancel').onclick = () => {
-        window.closeModal('modal-confirm');
-        confirmCallback = null;
-    };
+    document.getElementById('btn-confirm-yes').onclick = () => confirmCallback && confirmCallback();
+    document.getElementById('btn-confirm-cancel').onclick = () => { window.closeModal('modal-confirm'); confirmCallback = null; };
 }
 
 function showConfirmDialog(title, msg, onConfirm) {
@@ -781,7 +844,6 @@ function showConfirmDialog(title, msg, onConfirm) {
     document.getElementById('modal-confirm').classList.remove('hidden');
 }
 
-// 3. Misc
 async function getSportIdByName(name) {
     const { data } = await supabaseClient.from('sports').select('id').eq('name', name).single();
     return data?.id;
