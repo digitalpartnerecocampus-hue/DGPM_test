@@ -147,7 +147,7 @@ function setupTabSystem() {
     }
 }
 
-// --- 4. SCHEDULE MODULE (FIXED) ---
+// --- 4. SCHEDULE MODULE ---
 
 window.filterSchedule = function(view) {
     currentScheduleView = view;
@@ -191,7 +191,7 @@ async function loadSchedule() {
         return;
     }
 
-    // Filter Logic (Fixed for "Upcoming" status)
+    // Filter Logic
     let filteredMatches = [];
     if(currentScheduleView === 'upcoming') {
         filteredMatches = matches.filter(m => 
@@ -210,7 +210,6 @@ async function loadSchedule() {
     }
 
     container.innerHTML = filteredMatches.map(m => {
-        // Detect Live using both status and is_live boolean
         const isLive = m.is_live === true || m.status === 'Live';
         const isCompleted = m.status === 'Completed' || m.status === 'Finished';
         
@@ -675,52 +674,7 @@ async function getSportIdByName(name) {
 
 window.closeModal = id => document.getElementById(id).classList.add('hidden');
 
-// --- REGISTRATION MODAL LOGIC ---
-window.openRegistrationModal = async function(id) {
-    const { data: sport } = await supabaseClient.from('sports').select('*').eq('id', id).single();
-    selectedSportForReg = sport;
-    
-    document.getElementById('reg-modal-sport-name').innerText = sport.name;
-    document.getElementById('reg-modal-sport-name-span').innerText = sport.name;
-    
-    document.getElementById('reg-modal-user-name').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
-    document.getElementById('reg-modal-user-details').innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
-
-    const mobInput = document.getElementById('reg-mobile');
-    if(currentUser.mobile) {
-        mobInput.value = currentUser.mobile; 
-    } else {
-        mobInput.value = ''; 
-    }
-    
-    document.getElementById('modal-register').classList.remove('hidden');
-}
-
-window.confirmRegistration = async function() {
-    if(!currentUser.mobile) {
-        const phone = prompt("⚠️ Mobile number is required for coordination. Please enter yours:");
-        if(!phone || phone.length < 10) return showToast("Invalid Mobile Number", "error");
-        
-        await supabaseClient.from('users').update({mobile: phone}).eq('id', currentUser.id);
-        currentUser.mobile = phone; 
-    }
-
-    const { error } = await supabaseClient.from('registrations').insert({
-        user_id: currentUser.id,
-        sport_id: selectedSportForReg.id
-    });
-
-    if(error) showToast("Error registering", "error");
-    else {
-        showToast("Registration Successful!", "success");
-        window.closeModal('modal-register');
-        await fetchMyRegistrations();
-        window.toggleRegisterView('new');
-    }
-}
-
-// --- UTILS: TOAST & MODALS ---
-
+// --- TOAST & MODALS ---
 window.showToast = function(msg, type='info') {
     const t = document.getElementById('toast-container');
     const msgEl = document.getElementById('toast-msg');
@@ -758,4 +712,43 @@ function showConfirmDialog(title, msg, onConfirm) {
     document.getElementById('confirm-msg').innerText = msg;
     confirmCallback = onConfirm;
     document.getElementById('modal-confirm').classList.remove('hidden');
+}
+
+// --- REGISTRATION MODAL ---
+window.openRegistrationModal = async function(id) {
+    const { data: sport } = await supabaseClient.from('sports').select('*').eq('id', id).single();
+    selectedSportForReg = sport;
+    
+    document.getElementById('reg-modal-sport-name').innerText = sport.name;
+    document.getElementById('reg-modal-sport-name-span').innerText = sport.name;
+    document.getElementById('reg-modal-user-name').innerText = `${currentUser.first_name} ${currentUser.last_name}`;
+    document.getElementById('reg-modal-user-details').innerText = `${currentUser.class_name || 'N/A'} • ${currentUser.student_id || 'N/A'}`;
+
+    const mobInput = document.getElementById('reg-mobile');
+    mobInput.value = currentUser.mobile || ''; 
+    
+    document.getElementById('modal-register').classList.remove('hidden');
+}
+
+window.confirmRegistration = async function() {
+    if(!currentUser.mobile) {
+        const phone = prompt("⚠️ Mobile number is required for coordination. Please enter yours:");
+        if(!phone || phone.length < 10) return showToast("Invalid Mobile Number", "error");
+        
+        await supabaseClient.from('users').update({mobile: phone}).eq('id', currentUser.id);
+        currentUser.mobile = phone; 
+    }
+
+    const { error } = await supabaseClient.from('registrations').insert({
+        user_id: currentUser.id,
+        sport_id: selectedSportForReg.id
+    });
+
+    if(error) showToast("Error registering", "error");
+    else {
+        showToast("Registration Successful!", "success");
+        window.closeModal('modal-register');
+        await fetchMyRegistrations();
+        window.toggleRegisterView('new');
+    }
 }
