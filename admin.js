@@ -1,13 +1,8 @@
 // --- CONFIGURATION ---
-const ADMIN_EMAILS = [
-    "admin@urja.com", 
-    "mohitforestudies@gmail.com", 
-    "volunteer@urja.com"
-];
-
 const supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 let currentUser = null;
-let currentDataList = []; // Stores current table data for Export
+let currentDataList = []; // For Registrations Export
+let currentUserList = []; // For Students Export
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -22,29 +17,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('match-team-a').addEventListener('change', filterOpponentsByGender);
 });
 
-// --- 1. SECURITY & AUTH ---
+// --- 1. SECURITY & AUTH (STRICT ROLE CHECK) ---
 async function checkAdminAuth() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     
     if (!session) {
-        window.location.href = 'index.html';
+        window.location.href = 'admin-login.html';
         return;
     }
 
-    // Check against Allowed List
-    if (!ADMIN_EMAILS.includes(session.user.email)) {
-        alert("ACCESS DENIED: You are not an authorized administrator.");
-        window.location.href = 'index.html';
+    // DB Role Check
+    const { data: user, error } = await supabaseClient
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+    if (error || !user || user.role !== 'admin') {
+        alert("ACCESS DENIED: Admin privileges required.");
+        await supabaseClient.auth.signOut();
+        window.location.href = 'admin-login.html';
         return;
     }
 
     currentUser = session.user;
-    console.log("Admin Logged In:", currentUser.email);
+    console.log("Admin Logged In");
 }
 
 async function adminLogout() {
     await supabaseClient.auth.signOut();
-    window.location.href = 'index.html';
+    window.location.href = 'admin-login.html';
 }
 
 // --- 2. NAVIGATION ---
@@ -65,6 +67,7 @@ window.switchSection = function(sectionId) {
     // Lazy Loads
     if (sectionId === 'sports') loadSportsManager();
     if (sectionId === 'matches') loadMatchScheduleTab(); 
+    // Users section does NOT auto-load, per request
 }
 
 window.toggleMobileMenu = function() {
@@ -84,9 +87,9 @@ window.toggleMobileMenu = function() {
 async function loadDashboardStats() {
     document.getElementById('dashboard-alerts').innerHTML = '<p class="text-green-600 font-bold">● System Online</p>';
 
-    // Parallel Fetching for Speed
+    // Parallel Fetching
     const [users, teams, regs, live] = await Promise.all([
-        supabaseClient.from('users').select('id', { count: 'exact', head: true }),
+        supabaseClient.from('users').select('id', { count: 'exact', head: true }).eq('role', 'student'),
         supabaseClient.from('teams').select('id', { count: 'exact', head: true }),
         supabaseClient.from('registrations').select('id', { count: 'exact', head: true }),
         supabaseClient.from('matches').select('id', { count: 'exact', head: true }).eq('status', 'Live')
@@ -103,10 +106,7 @@ async function loadSportsManager() {
     const container = document.getElementById('admin-sports-grid');
     container.innerHTML = '<p>Loading...</p>';
 
-    const { data: sports } = await supabaseClient
-        .from('sports')
-        .select('id, name, type, status, icon')
-        .order('name');
+    const { data: sports } = await supabaseClient.from('sports').select('id, name, type, status, icon').order('name');
 
     container.innerHTML = sports.map(s => `
         <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
@@ -139,8 +139,7 @@ async function loadSportsForFilter() {
     if(select) select.innerHTML = `<option value="">All Sports</option>` + sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
-// --- 5. MATCH CENTER (VALIDATION & GENDER LOGIC) ---
-
+// --- 5. MATCH CENTER ---
 window.toggleMatchTab = function(tab) {
     document.getElementById('view-match-schedule').classList.add('hidden');
     document.getElementById('view-match-live').classList.add('hidden');
@@ -161,81 +160,37 @@ window.toggleMatchTab = function(tab) {
 async function loadMatchScheduleTab() {
     const { data: sports } = await supabaseClient.from('sports').select('id, name').order('name');
     const select = document.getElementById('match-sport-select');
-    select.innerHTML = `<option value="">Select Sport...</option>` + 
-        sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    select.innerHTML = `<option value="">Select Sport...</option>` + sports.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
-// LOADS PLAYERS (SOLO) OR TEAMS (TEAM) WITH GENDER DATA
 window.loadTeamsForMatch = async function(sportId) {
     if(!sportId) return;
-    
-    // 1. Determine Sport Type
     const { data: sport } = await supabaseClient.from('sports').select('type').eq('id', sportId).single();
     
     let options = `<option value="">Select Participant...</option>`;
     
     if (sport.type === 'Solo') {
-        // Fetch Individual Users with Gender
-        const { data: regs } = await supabaseClient
-            .from('registrations')
-            .select(`
-                user_id, 
-                users (first_name, last_name, student_id, gender)
-            `)
-            .eq('sport_id', sportId);
-            
-        if(regs) {
-            options += regs.map(r => {
-                const name = `${r.users.first_name} ${r.users.last_name}`;
-                // Data attributes store gender for filtering
-                return `<option value="${name}" data-gender="${r.users.gender}">${name} (${r.users.student_id}) - ${r.users.gender || 'N/A'}</option>`;
-            }).join('');
-        }
-        
+        const { data: regs } = await supabaseClient.from('registrations').select(`user_id, users (first_name, last_name, student_id, gender)`).eq('sport_id', sportId);
+        if(regs) options += regs.map(r => `<option value="${r.users.first_name} ${r.users.last_name}" data-gender="${r.users.gender}">${r.users.first_name} ${r.users.last_name} (${r.users.student_id}) - ${r.users.gender}</option>`).join('');
     } else {
-        // Fetch Teams (Value = Team ID for validation, Text = Team Name)
-        // Join with Captain to get Gender
-        const { data: teams } = await supabaseClient
-            .from('teams')
-            .select(`
-                id, name, status,
-                captain:users!captain_id(gender)
-            `)
-            .eq('sport_id', sportId);
-            
-        if(teams) {
-            options += teams.map(t => {
-                const gender = t.captain ? t.captain.gender : 'N/A';
-                return `<option value="${t.id}" data-status="${t.status}" data-name="${t.name}" data-gender="${gender}">${t.name} (${t.status}) - ${gender}</option>`;
-            }).join('');
-        }
+        const { data: teams } = await supabaseClient.from('teams').select(`id, name, status, captain:users!captain_id(gender)`).eq('sport_id', sportId);
+        if(teams) options += teams.map(t => `<option value="${t.id}" data-status="${t.status}" data-name="${t.name}" data-gender="${t.captain?.gender}">${t.name} (${t.status})</option>`).join('');
     }
     
-    // Populate Both Dropdowns
     const selectA = document.getElementById('match-team-a');
     const selectB = document.getElementById('match-team-b');
-    
     selectA.innerHTML = options;
-    selectB.innerHTML = options; // Initially same options
+    selectB.innerHTML = options;
 }
 
-// FILTER LOGIC: Updates Side B when Side A changes
 function filterOpponentsByGender() {
     const selectA = document.getElementById('match-team-a');
     const selectB = document.getElementById('match-team-b');
+    const genderA = selectA.options[selectA.selectedIndex].getAttribute('data-gender');
     
-    const selectedOptionA = selectA.options[selectA.selectedIndex];
-    const genderA = selectedOptionA.getAttribute('data-gender');
-    
-    // Reset Side B
-    const allOptionsB = Array.from(selectB.options);
-    
-    allOptionsB.forEach(opt => {
-        if(opt.value === "") return; // Skip placeholder
-        
+    Array.from(selectB.options).forEach(opt => {
+        if(opt.value === "") return; 
         const genderB = opt.getAttribute('data-gender');
-        
-        // Logic: Show only if Gender Matches
         if (genderA && genderB && genderA !== genderB) {
             opt.style.display = "none";
             opt.disabled = true;
@@ -244,11 +199,8 @@ function filterOpponentsByGender() {
             opt.disabled = false;
         }
     });
-    
-    // Reset B selection if it's now invalid
     selectB.value = "";
 }
-
 
 window.createMatch = async function() {
     const sportId = document.getElementById('match-sport-select').value;
@@ -257,68 +209,42 @@ window.createMatch = async function() {
     const time = document.getElementById('match-time').value;
     const loc = document.getElementById('match-location').value;
 
-    if(!sportId || !teamAValue || !teamBValue || !time) {
-        showToast("Please fill all fields", "error");
-        return;
-    }
+    if(!sportId || !teamAValue || !teamBValue || !time) return showToast("Please fill all fields", "error");
+    if (teamAValue === teamBValue) return showToast("Opponents must be different.", "error");
 
-    // VALIDATION 1: Cannot play against self
-    if (teamAValue === teamBValue) {
-        showToast("Opponents must be different.", "error");
-        return;
-    }
-
-    // Determine Names and IDs based on Sport Type
     const { data: sport } = await supabaseClient.from('sports').select('type').eq('id', sportId).single();
-    
     let nameA, nameB;
 
     if (sport.type === 'Team') {
-        // For Teams, the value is the ID. We need to check if they are LOCKED.
         const selA = document.getElementById('match-team-a').selectedOptions[0];
         const selB = document.getElementById('match-team-b').selectedOptions[0];
         
-        const statusA = selA.getAttribute('data-status');
-        const statusB = selB.getAttribute('data-status');
-        
+        if (selA.getAttribute('data-status') !== 'Locked' || selB.getAttribute('data-status') !== 'Locked') {
+            return showToast("Both teams must be Locked.", "error");
+        }
         nameA = selA.getAttribute('data-name');
         nameB = selB.getAttribute('data-name');
-
-        // VALIDATION 2: Teams must be Locked (Full Squad)
-        if (statusA !== 'Locked') {
-            showToast(`${nameA} is not Locked (Squad incomplete).`, "error");
-            return;
-        }
-        if (statusB !== 'Locked') {
-            showToast(`${nameB} is not Locked (Squad incomplete).`, "error");
-            return;
-        }
     } else {
-        // For Solo, value is the name itself
         nameA = teamAValue;
         nameB = teamBValue;
     }
 
-    // Create Match
     const { error } = await supabaseClient.from('matches').insert({
         sport_id: sportId,
         team1_name: nameA, 
         team2_name: nameB,
         start_time: time,
         location: loc,
-        status: 'Upcoming',
-        score1: '0',
-        score2: '0'
+        status: 'Upcoming'
     });
 
     if (error) showToast(error.message, "error");
     else {
-        showToast("Match Scheduled Successfully!", "success");
+        showToast("Match Scheduled!", "success");
         document.getElementById('create-match-form').reset();
     }
 }
 
-// B. Live Console
 async function fetchAdminMatches() {
     const container = document.getElementById('admin-live-matches');
     container.innerHTML = '<p class="text-center text-gray-400">Loading matches...</p>';
@@ -373,14 +299,12 @@ window.updateMatchStatus = async function(id, status) {
 window.saveScore = async function(id) {
     const s1 = document.getElementById(`score1-${id}`).value;
     const s2 = document.getElementById(`score2-${id}`).value;
-
     const { error } = await supabaseClient.from('matches').update({ score1: s1, score2: s2 }).eq('id', id);
     if(error) showToast("Error updating score", "error");
     else showToast("Score Updated", "success");
 }
 
-// --- 6. DATA MANAGER & EXPORTS ---
-
+// --- 6. DATA MANAGER (REGISTRATIONS) ---
 window.searchData = async function() {
     const query = document.getElementById('data-search').value.toLowerCase();
     const sportId = document.getElementById('filter-sport').value;
@@ -391,15 +315,8 @@ window.searchData = async function() {
 
     let dbQuery = supabaseClient
         .from('registrations')
-        .select(`
-            id, 
-            player_status, 
-            created_at,
-            users!inner(first_name, last_name, student_id, class_name), 
-            sports!inner(id, name, type)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(200);
+        .select(`id, player_status, created_at, users!inner(first_name, last_name, student_id, class_name), sports!inner(id, name, type)`)
+        .order('created_at', { ascending: false }).limit(200);
 
     if (sportId) dbQuery = dbQuery.eq('sport_id', sportId);
     if (status) dbQuery = dbQuery.eq('player_status', status);
@@ -440,9 +357,7 @@ window.searchData = async function() {
                     <option value="Won" ${r.player_status==='Won'?'selected':''}>Won</option>
                 </select>
             </td>
-            <td class="px-4 py-3">
-                <span class="text-gray-400 text-xs">--</span>
-            </td>
+            <td class="px-4 py-3"><span class="text-gray-400 text-xs">--</span></td>
         </tr>
     `).join('');
 }
@@ -460,20 +375,14 @@ function getStatusColor(status) {
     return 'bg-gray-100 text-gray-700';
 }
 
-// --- EXPORT LOGIC ---
-
 window.exportData = function(type) {
-    if (currentDataList.length === 0) {
-        showToast("No data to export. Search first.", "error");
-        return;
-    }
+    if (currentDataList.length === 0) return showToast("No data to export.", "error");
 
     const rows = currentDataList.map(r => ({
         "Student ID": r.users.student_id,
         "Name": `${r.users.first_name} ${r.users.last_name}`,
         "Class": r.users.class_name,
         "Sport": r.sports.name,
-        "Type": r.sports.type,
         "Status": r.player_status || "Registered"
     }));
 
@@ -481,26 +390,89 @@ window.exportData = function(type) {
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Registrations");
-        XLSX.writeFile(wb, "URJA_Export.xlsx");
-        showToast("Excel Downloaded", "success");
+        XLSX.writeFile(wb, "URJA_Registrations.xlsx");
     } 
     else if (type === 'pdf') {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        doc.setFontSize(18);
-        doc.text("URJA 2026 Registration Report", 14, 15);
-        
-        doc.setFontSize(10);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+        doc.setFontSize(18); doc.text("URJA 2026 - Registrations", 14, 15);
+        doc.autoTable({ head: [Object.keys(rows[0])], body: rows.map(Object.values), startY: 25 });
+        doc.save("URJA_Registrations.pdf");
+    }
+}
 
-        doc.autoTable({
-            head: [["ID", "Name", "Class", "Sport", "Type", "Status"]],
-            body: rows.map(Object.values),
-            startY: 28
-        });
-        doc.save("URJA_Report.pdf");
-        showToast("PDF Downloaded", "success");
+// --- 7. NEW: USER MANAGER (STUDENTS) ---
+
+window.fetchUsers = async function() {
+    const queryText = document.getElementById('user-search').value.toLowerCase();
+    const tbody = document.getElementById('user-table-body');
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Fetching users from database...</td></tr>';
+
+    // Fetch All Users (Filtered by role 'student' optional if you want admin too)
+    const { data: users, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500); // Limit to prevent browser crash if huge DB
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-red-500">${error.message}</td></tr>`;
+        return;
+    }
+
+    const filtered = users.filter(u => {
+        const text = `${u.first_name} ${u.last_name} ${u.student_id} ${u.email}`.toLowerCase();
+        return text.includes(queryText);
+    });
+
+    currentUserList = filtered;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No students found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(u => `
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+            <td class="px-4 py-3">
+                <p class="font-bold text-gray-800">${u.first_name} ${u.last_name}</p>
+                <p class="text-xs text-gray-500">${u.email}</p>
+            </td>
+            <td class="px-4 py-3 text-sm font-mono">${u.student_id || 'N/A'}</td>
+            <td class="px-4 py-3 text-sm">${u.class_name || 'N/A'}</td>
+            <td class="px-4 py-3 text-sm">${u.mobile || 'N/A'}</td>
+            <td class="px-4 py-3 text-xs">
+                <span class="px-2 py-1 rounded ${u.role==='admin' ? 'bg-red-100 text-red-700 font-bold' : 'bg-green-100 text-green-700'}">${u.role || 'Student'}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+window.exportUsers = function(type) {
+    if (currentUserList.length === 0) return showToast("No users loaded to export.", "error");
+
+    const rows = currentUserList.map(u => ({
+        "Student ID": u.student_id,
+        "Name": `${u.first_name} ${u.last_name}`,
+        "Email": u.email,
+        "Mobile": u.mobile,
+        "Class": u.class_name,
+        "Gender": u.gender
+    }));
+
+    if (type === 'excel') {
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Students");
+        XLSX.writeFile(wb, "URJA_Students.xlsx");
+    } 
+    else if (type === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(18); doc.text("URJA 2026 - Student Database", 14, 15);
+        doc.autoTable({ head: [Object.keys(rows[0])], body: rows.map(Object.values), startY: 25 });
+        doc.save("URJA_Students.pdf");
     }
 }
 
