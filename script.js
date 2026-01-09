@@ -6,18 +6,8 @@ let myRegistrations = []; // Array of Sport IDs the user has registered for
 let selectedSportForReg = null;
 let currentScheduleView = 'upcoming'; // 'upcoming' or 'results'
 
-// Default Capacities (Fallback if DB doesn't specify)
-const DEFAULT_CAPACITIES = {
-    'Cricket': 11,
-    'Box Cricket': 8,
-    'Football': 11,
-    'Volleyball': 6,
-    'Kabaddi': 7,
-    'Relay': 4,
-    'Tug of War': 8,
-    'Kho-Kho': 9,
-    'default': 5
-};
+// Default Fallback if DB is missing value
+const DEFAULT_TEAM_SIZE = 5;
 
 // New Default Avatar URL
 const DEFAULT_AVATAR = "https://t4.ftcdn.net/jpg/05/89/93/27/360_F_589932782_vQAEAZhHnq1QCGu5ikwrYaQD0Mmurm0N.jpg";
@@ -147,7 +137,7 @@ function setupTabSystem() {
     }
 }
 
-// --- 4. SCHEDULE MODULE (GAP FIXED) ---
+// --- 4. SCHEDULE MODULE (UPDATED UI) ---
 
 window.filterSchedule = function(view) {
     currentScheduleView = view;
@@ -206,58 +196,58 @@ async function loadSchedule() {
     }
 
     if (filteredMatches.length === 0) {
-        // Keep centered layout for empty state
         container.innerHTML = `<p class="text-gray-400 font-medium">No ${currentScheduleView} matches.</p>`;
         return;
     }
 
-    // --- FIX: Remove gap by resetting container classes when data exists ---
-    container.className = 'space-y-3 pb-24'; // Removed py-20, text-center, etc.
+    // Reset container for list view
+    container.className = 'space-y-4 pb-24'; 
 
     container.innerHTML = filteredMatches.map(m => {
         const isLive = m.is_live === true || m.status === 'Live';
-        const isCompleted = m.status === 'Completed' || m.status === 'Finished';
         
+        // Date Logic
         const dateObj = new Date(m.start_time);
         const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric'});
 
-        let centerContent = '';
-        if (isCompleted || isLive) {
-            centerContent = `<span class="font-mono font-black text-xl tracking-widest ${isLive ? 'text-red-500' : 'text-brand-primary'}">${m.score1 || 0} - ${m.score2 || 0}</span>`;
+        // Badge Logic
+        let badgeHtml = '';
+        if (isLive) {
+            badgeHtml = `<span class="bg-indigo-50 dark:bg-indigo-900/40 text-brand-primary dark:text-indigo-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">LIVE NOW</span>`;
         } else {
-            centerContent = `<span class="font-black text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md">VS</span>`;
+            badgeHtml = `<span class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">${dateStr} • ${timeStr}</span>`;
         }
 
-        let badge = '';
-        if (isLive) badge = `<span class="absolute top-4 right-4 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full border border-red-100 dark:border-red-900"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> LIVE</span>`;
-        else if (isCompleted) badge = `<span class="absolute top-4 right-4 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">FINAL</span>`;
-        else badge = `<span class="absolute top-4 right-4 text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">${dateStr}</span>`;
+        const scoreDisplay = `${m.score1 || 0} - ${m.score2 || 0}`;
 
+        // BLUE CARD DESIGN
         return `
-        <div class="relative w-full bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            ${badge}
+        <div class="w-full bg-white dark:bg-gray-800 rounded-3xl border-2 border-brand-primary/60 dark:border-indigo-500/50 p-5 shadow-sm relative overflow-hidden">
             
-            <div class="flex items-center gap-2 mb-6">
-                <div class="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-brand-primary dark:text-white">
-                    <i data-lucide="${m.sports.icon || 'trophy'}" class="w-4 h-4"></i>
-                </div>
-                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">${m.sports.name}</span>
+            <div class="flex justify-between items-start mb-6">
+                ${badgeHtml}
+                <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">${m.location || 'TBA'}</span>
             </div>
 
-            <div class="flex items-center justify-between w-full">
-                <div class="flex-1 text-right pr-4">
-                    <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight break-words">${m.team1_name}</h4>
+            <div class="flex items-center justify-between w-full mb-6">
+                <div class="flex-1 text-center">
+                    <h4 class="font-black text-lg text-gray-800 dark:text-white leading-tight break-words">${m.team1_name}</h4>
                 </div>
 
-                <div class="shrink-0 flex flex-col items-center w-16">
-                    ${centerContent}
-                    ${!isCompleted && !isLive ? `<span class="text-[10px] font-bold text-gray-400 mt-1.5 whitespace-nowrap">${timeStr}</span>` : ''}
+                <div class="shrink-0 flex flex-col items-center px-2">
+                    <span class="text-[10px] font-bold text-gray-300 mb-1">VS</span>
+                    <span class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-[10px] font-bold px-4 py-1 rounded-full uppercase truncate max-w-[100px]">${m.sports.name}</span>
                 </div>
 
-                <div class="flex-1 text-left pl-4">
-                    <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-tight break-words">${m.team2_name}</h4>
+                <div class="flex-1 text-center">
+                    <h4 class="font-black text-lg text-gray-800 dark:text-white leading-tight break-words">${m.team2_name}</h4>
                 </div>
+            </div>
+
+            <div class="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
+                <span class="font-mono text-sm text-brand-primary dark:text-indigo-400 font-bold tracking-widest">Score: ${scoreDisplay}</span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
             </div>
         </div>
         `;
@@ -307,16 +297,17 @@ async function loadTeamSportsFilter() {
     }
 }
 
-// A. MARKETPLACE
+// A. MARKETPLACE (FIXED CAPACITIES ERROR)
 window.loadTeamMarketplace = async function() {
     const container = document.getElementById('marketplace-list');
     container.innerHTML = '<p class="text-center text-gray-400 py-10">Scanning available squads...</p>';
 
     const filterVal = document.getElementById('team-sport-filter').value;
 
+    // IMPORTANT: Join sports(name, team_size) to get capacity from DB
     let query = supabaseClient
         .from('teams')
-        .select(`*, sports(name), captain:users!captain_id(first_name, gender)`)
+        .select(`*, sports(name, team_size), captain:users!captain_id(first_name, gender)`)
         .eq('status', 'Open')
         .order('created_at', { ascending: false });
 
@@ -347,7 +338,8 @@ window.loadTeamMarketplace = async function() {
             .eq('team_id', t.id)
             .eq('status', 'Accepted');
             
-        const max = SPORT_CAPACITIES[t.sports.name] || SPORT_CAPACITIES['default'];
+        // FIX: Use DB team_size or fallback
+        const max = t.sports.team_size || DEFAULT_TEAM_SIZE;
         const seatsLeft = max - (count || 0);
         return { ...t, seatsLeft };
     });
@@ -543,7 +535,8 @@ window.promptLockTeam = async function(teamId) {
     const { count } = await supabaseClient.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'Accepted');
     const { data } = await supabaseClient.from('teams').select('sports(team_size, name)').eq('id', teamId).single();
     
-    const required = data?.sports?.team_size || DEFAULT_CAPACITIES[data?.sports?.name] || 5;
+    // Fallback to 5 if DB field is null
+    const required = data?.sports?.team_size || DEFAULT_TEAM_SIZE;
     
     if(count < required) return showToast(`⚠️ Squad incomplete! Need ${required} players.`, "error");
 
