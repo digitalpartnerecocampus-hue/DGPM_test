@@ -133,7 +133,7 @@ function setupTabSystem() {
     }
 }
 
-// --- 4. SCHEDULE MODULE (Blue Card Design) ---
+// --- 4. SCHEDULE MODULE (Fixed Time & Blue Design) ---
 
 window.filterSchedule = function(view) {
     currentScheduleView = view;
@@ -197,9 +197,11 @@ async function loadSchedule() {
 
     container.innerHTML = filteredMatches.map(m => {
         const isLive = m.is_live === true || m.status === 'Live';
+        
+        // --- TIME FIX: Use UTC to match DB exactly ---
         const dateObj = new Date(m.start_time);
-        const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric'});
+        const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', timeZone: 'UTC'});
+        const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric', timeZone: 'UTC'});
 
         let badgeHtml = isLive 
             ? `<span class="bg-indigo-50 dark:bg-indigo-900/40 text-brand-primary dark:text-indigo-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">LIVE NOW</span>`
@@ -518,7 +520,7 @@ window.createTeam = async function() {
     }
 }
 
-// --- 6. REGISTRATION MODULE (FIXED & COMPLETE) ---
+// --- 6. REGISTRATION MODULE (FIXED) ---
 
 window.toggleRegisterView = function(view) {
     document.getElementById('reg-section-new').classList.add('hidden');
@@ -543,7 +545,6 @@ window.toggleRegisterView = function(view) {
 
 window.loadSportsDirectory = async function() {
     const container = document.getElementById('sports-list');
-    // Only fetch if empty to save calls
     if(container.children.length > 0 && allSportsList.length > 0) return;
 
     container.innerHTML = '<div class="col-span-2 text-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto"></div></div>';
@@ -593,14 +594,15 @@ window.filterSports = function() {
     renderSportsList(filtered);
 }
 
-// Reuse logic for Profile and History tab
+// --- UPDATED: Show Status with Colors ---
 window.loadRegistrationHistory = async function(containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '<p class="text-center text-gray-400 py-10">Loading history...</p>';
 
+    // FETCH PLAYER_STATUS
     const { data: regs } = await supabaseClient
         .from('registrations')
-        .select(`created_at, sports (name, icon, type)`)
+        .select(`created_at, player_status, sports (name, icon, type)`)
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
 
@@ -609,17 +611,28 @@ window.loadRegistrationHistory = async function(containerId) {
         return;
     }
 
-    container.innerHTML = regs.map(r => `
+    container.innerHTML = regs.map(r => {
+        // Status Logic
+        const status = r.player_status || 'Registered';
+        let statusColor = 'bg-gray-100 text-gray-500'; // Default
+        if(status === 'Won') statusColor = 'bg-yellow-100 text-yellow-700 border-yellow-200';
+        else if(status === 'Playing') statusColor = 'bg-blue-100 text-blue-700 border-blue-200';
+        else if(status === 'Scheduled') statusColor = 'bg-purple-100 text-purple-700 border-purple-200';
+
+        return `
         <div class="flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm mb-2">
             <div class="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-brand-primary dark:text-white shrink-0">
                 <i data-lucide="${r.sports.icon || 'trophy'}" class="w-5 h-5"></i>
             </div>
-            <div>
-                <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
-                <p class="text-xs text-gray-400 font-medium">${r.sports.type} • ${new Date(r.created_at).toLocaleDateString()}</p>
+            <div class="flex-1">
+                <div class="flex justify-between items-start">
+                    <h4 class="font-bold text-sm text-gray-900 dark:text-white">${r.sports.name}</h4>
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded border ${statusColor} uppercase">${status}</span>
+                </div>
+                <p class="text-xs text-gray-400 font-medium mt-0.5">${r.sports.type} • ${new Date(r.created_at).toLocaleDateString()}</p>
             </div>
         </div>
-    `).join('');
+    `}).join('');
     lucide.createIcons();
 }
 
@@ -735,7 +748,6 @@ window.confirmRegistration = async function() {
         window.closeModal('modal-register');
         await fetchMyRegistrations();
         window.toggleRegisterView('new');
-        // Refresh buttons
         window.loadSportsDirectory();
     }
 }
