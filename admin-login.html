@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | URJA 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Outfit', 'sans-serif'] }, colors: { brand: { primary: '#6366F1' } } } }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-gray-800 w-full max-w-sm rounded-2xl p-8 shadow-2xl border border-gray-700">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic tracking-tighter">URJA <span class="text-brand-primary">ADMIN</span></h1>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">Authorized Personnel Only</p>
+        </div>
+
+        <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+            <div>
+                <label class="text-xs font-bold text-gray-400 ml-1 mb-1 block">Admin Email</label>
+                <input type="email" id="admin-email" required class="w-full p-3 bg-gray-900 border border-gray-700 rounded-xl text-sm focus:border-brand-primary outline-none transition-colors">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-400 ml-1 mb-1 block">Password</label>
+                <input type="password" id="admin-pass" required class="w-full p-3 bg-gray-900 border border-gray-700 rounded-xl text-sm focus:border-brand-primary outline-none transition-colors">
+            </div>
+            
+            <button type="submit" id="btn-login" class="w-full py-3 bg-brand-primary hover:bg-indigo-600 text-white font-bold rounded-xl transition-all shadow-lg">
+                Secure Login
+            </button>
+        </form>
+        
+        <p id="error-msg" class="text-red-500 text-xs font-bold text-center mt-4 hidden"></p>
+    </div>
+
+    <script>
+        const supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+
+        async function handleAdminLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-login');
+            const err = document.getElementById('error-msg');
+            
+            btn.innerHTML = 'Verifying Access...';
+            btn.disabled = true;
+            err.classList.add('hidden');
+
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-pass').value;
+
+            // 1. Sign In
+            const { data: { session }, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                showError(error.message);
+                resetBtn();
+                return;
+            }
+
+            // 2. Strict Role Check
+            const { data: userProfile, error: profileError } = await supabase
+                .from('users')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profileError || userProfile?.role !== 'admin') {
+                await supabase.auth.signOut();
+                showError("ACCESS DENIED: You do not have admin privileges.");
+                resetBtn();
+                return;
+            }
+
+            // 3. Success
+            window.location.href = 'admin.html';
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg;
+            el.classList.remove('hidden');
+        }
+
+        function resetBtn() {
+            const btn = document.getElementById('btn-login');
+            btn.innerHTML = 'Secure Login';
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
