@@ -10,6 +10,16 @@ let allSportsList = []; // Cache for search
 const DEFAULT_TEAM_SIZE = 5;
 const DEFAULT_AVATAR = "https://t4.ftcdn.net/jpg/05/89/93/27/360_F_589932782_vQAEAZhHnq1QCGu5ikwrYaQD0Mmurm0N.jpg";
 
+// --- LISTS FOR VIEW LOGIC ---
+const TEAM_SPORTS_WITH_VIEW = [
+    'Box cricket', 'Volleyball', 'Basketball', 'Football', 
+    'Rugby', 'Kho-kho', 'Tug of war', 'Kabbaddi'
+];
+
+const RACE_SPORTS_WITH_VIEW = [
+    '100m race', '200m race', 'Relay race (400m)', 'Shotput'
+];
+
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
@@ -133,7 +143,7 @@ function setupTabSystem() {
     }
 }
 
-// --- 4. SCHEDULE MODULE (Fixed Time & Blue Design) ---
+// --- 4. SCHEDULE MODULE (UPDATED FOR CLICKABLE CARDS) ---
 
 window.filterSchedule = function(view) {
     currentScheduleView = view;
@@ -163,7 +173,7 @@ async function loadSchedule() {
 
     const { data: matches } = await supabaseClient
         .from('matches')
-        .select('*, sports(name, icon)')
+        .select('*, sports(name, icon, type)')
         .order('start_time', { ascending: true });
 
     if (!matches || matches.length === 0) {
@@ -197,45 +207,167 @@ async function loadSchedule() {
 
     container.innerHTML = filteredMatches.map(m => {
         const isLive = m.is_live === true || m.status === 'Live';
+        const sportName = m.sports.name;
         
-        // --- TIME FIX: Use UTC to match DB exactly ---
+        // --- VIEWABLE CHECK ---
+        const isViewable = TEAM_SPORTS_WITH_VIEW.includes(sportName) || RACE_SPORTS_WITH_VIEW.includes(sportName);
+
+        // --- TIME FORMATTING ---
         const dateObj = new Date(m.start_time);
         const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', timeZone: 'UTC'});
         const dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric', timeZone: 'UTC'});
 
         let badgeHtml = isLive 
-            ? `<span class="bg-indigo-50 dark:bg-indigo-900/40 text-brand-primary dark:text-indigo-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">LIVE NOW</span>`
+            ? `<span class="bg-indigo-50 dark:bg-indigo-900/40 text-brand-primary dark:text-indigo-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider pulse-badge">LIVE NOW</span>`
             : `<span class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">${dateStr} • ${timeStr}</span>`;
 
         const scoreDisplay = `${m.score1 || 0} - ${m.score2 || 0}`;
 
         return `
-        <div class="w-full bg-white dark:bg-gray-800 rounded-3xl border-2 border-brand-primary/60 dark:border-indigo-500/50 p-5 shadow-sm relative overflow-hidden">
+        <div 
+            onclick="${isViewable ? `window.openMatchDetails('${m.id}')` : ''}"
+            class="w-full bg-white dark:bg-gray-800 rounded-3xl border-2 border-brand-primary/60 dark:border-indigo-500/50 p-5 shadow-sm relative overflow-hidden ${isViewable ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}"
+        >
             <div class="flex justify-between items-start mb-6">
                 ${badgeHtml}
                 <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">${m.location || 'TBA'}</span>
             </div>
             <div class="flex items-center justify-between w-full mb-6">
                 <div class="flex-1 text-center">
-                    <h4 class="font-black text-lg text-gray-800 dark:text-white leading-tight break-words">${m.team1_name}</h4>
+                    <h4 class="font-black text-lg text-gray-800 dark:text-white leading-tight break-words">${m.team1_name || 'TBA'}</h4>
                 </div>
                 <div class="shrink-0 flex flex-col items-center px-2">
                     <span class="text-[10px] font-bold text-gray-300 mb-1">VS</span>
-                    <span class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-[10px] font-bold px-4 py-1 rounded-full uppercase truncate max-w-[100px]">${m.sports.name}</span>
+                    <span class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-[10px] font-bold px-4 py-1 rounded-full uppercase truncate max-w-[100px]">${sportName}</span>
                 </div>
                 <div class="flex-1 text-center">
-                    <h4 class="font-black text-lg text-gray-800 dark:text-white leading-tight break-words">${m.team2_name}</h4>
+                    <h4 class="font-black text-lg text-gray-800 dark:text-white leading-tight break-words">${m.team2_name || 'TBA'}</h4>
                 </div>
             </div>
             <div class="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between items-center">
                 <span class="font-mono text-sm text-brand-primary dark:text-indigo-400 font-bold tracking-widest">Score: ${scoreDisplay}</span>
-                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                ${isViewable ? '<span class="text-[10px] font-bold text-gray-400 flex items-center gap-1">Details <i data-lucide="chevron-right" class="w-3 h-3"></i></span>' : ''}
             </div>
         </div>
         `;
     }).join('');
     
     lucide.createIcons();
+}
+
+// --- NEW FUNCTION: OPEN MATCH DETAILS ---
+window.openMatchDetails = async function(matchId) {
+    const { data: match } = await supabaseClient.from('matches').select('*, sports(name)').eq('id', matchId).single();
+    if(!match) return;
+
+    const sportName = match.sports.name;
+    const isTeamSport = TEAM_SPORTS_WITH_VIEW.includes(sportName);
+    const isRaceSport = RACE_SPORTS_WITH_VIEW.includes(sportName);
+
+    // Populate Header
+    document.getElementById('md-sport-name').innerText = sportName;
+    document.getElementById('md-match-status').innerText = match.status;
+
+    // Reset Views
+    document.getElementById('md-layout-team').classList.add('hidden');
+    document.getElementById('md-layout-race').classList.add('hidden');
+
+    if (isTeamSport) {
+        document.getElementById('md-layout-team').classList.remove('hidden');
+        
+        // Fill Scoreboard
+        document.getElementById('md-t1-name').innerText = match.team1_name;
+        document.getElementById('md-t2-name').innerText = match.team2_name;
+        document.getElementById('md-t1-score').innerText = match.score1 || '0';
+        document.getElementById('md-t2-score').innerText = match.score2 || '0';
+        
+        // Fill Lists Headers
+        document.getElementById('md-list-t1-title').innerText = match.team1_name;
+        document.getElementById('md-list-t2-title').innerText = match.team2_name;
+
+        // Fetch Squads
+        loadSquadList(match.team1_name, match.sport_id, 'md-list-t1');
+        loadSquadList(match.team2_name, match.sport_id, 'md-list-t2');
+
+    } else if (isRaceSport) {
+        document.getElementById('md-layout-race').classList.remove('hidden');
+        
+        // Set Header for Metric (Distance vs Time)
+        const isThrow = sportName.includes('Shotput');
+        document.getElementById('md-race-metric-header').innerText = isThrow ? 'Distance' : 'Time';
+
+        // Parse JSON Details
+        const tbody = document.getElementById('md-race-tbody');
+        tbody.innerHTML = '';
+        
+        let results = [];
+        try {
+            results = match.details ? (typeof match.details === 'string' ? JSON.parse(match.details) : match.details) : [];
+            // If it's not an array, maybe it's an object with a 'results' key? Adjust based on your JSON structure
+            if(!Array.isArray(results) && results.results) results = results.results;
+        } catch(e) { console.error("JSON Error", e); }
+
+        if (!results || results.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 italic">No results data available yet.</td></tr>';
+        } else {
+            // Sort by Rank
+            results.sort((a, b) => (a.rank || 99) - (b.rank || 99));
+
+            tbody.innerHTML = results.map(r => `
+                <tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                        ${r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : r.rank}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                        ${r.name || 'Unknown'}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono font-bold text-brand-primary">
+                        ${r.metric || '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    document.getElementById('modal-match-details').classList.remove('hidden');
+}
+
+// Helper to fetch Team Members using Team Name + Sport ID
+async function loadSquadList(teamName, sportId, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '<p class="text-xs text-gray-400 italic">Loading...</p>';
+
+    // 1. Find Team ID
+    const { data: teamData } = await supabaseClient
+        .from('teams')
+        .select('id')
+        .eq('name', teamName)
+        .eq('sport_id', sportId)
+        .single();
+
+    if (!teamData) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic">Squad not found.</p>';
+        return;
+    }
+
+    // 2. Fetch Members
+    const { data: members } = await supabaseClient
+        .from('team_members')
+        .select('users(first_name, last_name, class_name)')
+        .eq('team_id', teamData.id)
+        .eq('status', 'Accepted'); // Only show accepted members
+
+    if (!members || members.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic">No members.</p>';
+        return;
+    }
+
+    container.innerHTML = members.map(m => `
+        <div class="flex justify-between items-center text-xs border-b border-gray-100 dark:border-gray-600 pb-1 last:border-0">
+            <span class="text-gray-700 dark:text-gray-300 font-medium">${m.users.first_name} ${m.users.last_name}</span>
+            <span class="text-gray-400 text-[10px]">${m.users.class_name || ''}</span>
+        </div>
+    `).join('');
 }
 
 // --- 5. TEAMS MODULE ---
