@@ -23,12 +23,17 @@
                         brand: { primary: '#6366F1', secondary: '#EC4899' }
                     },
                     animation: {
-                        'scale-in': 'scaleIn 0.2s ease-out forwards'
+                        'scale-in': 'scaleIn 0.2s ease-out forwards',
+                        'slide-up': 'slideUp 0.3s ease-out forwards'
                     },
                     keyframes: {
                         scaleIn: {
                             '0%': { transform: 'scale(0.95)', opacity: '0' },
                             '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(100%)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
                         }
                     }
                 }
@@ -395,6 +400,73 @@
         </div>
     </div>
 
+    <div id="modal-match-details" class="fixed inset-0 z-[80] bg-black/60 hidden flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-slide-up transition-colors max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-3">
+                <div>
+                    <h3 id="md-sport-name" class="text-xl font-black italic uppercase text-gray-900 dark:text-white">SPORT NAME</h3>
+                    <p id="md-match-status" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</p>
+                </div>
+                <button onclick="window.closeModal('modal-match-details')" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <i data-lucide="x" class="w-5 h-5 text-gray-500 dark:text-gray-300"></i>
+                </button>
+            </div>
+    
+            <div class="overflow-y-auto custom-scrollbar flex-1">
+                
+                <div id="md-layout-team" class="hidden">
+                    <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 mb-6 border border-gray-100 dark:border-gray-700">
+                        <div class="text-center w-1/3">
+                            <h4 id="md-t1-name" class="font-bold text-sm md:text-base leading-tight dark:text-white break-words">Team A</h4>
+                            <p id="md-t1-score" class="text-3xl font-black text-brand-primary mt-1">0</p>
+                        </div>
+                        <div class="text-center w-1/3">
+                            <span class="text-xs font-bold text-gray-400 uppercase">VS</span>
+                        </div>
+                        <div class="text-center w-1/3">
+                            <h4 id="md-t2-name" class="font-bold text-sm md:text-base leading-tight dark:text-white break-words">Team B</h4>
+                            <p id="md-t2-score" class="text-3xl font-black text-brand-primary mt-1">0</p>
+                        </div>
+                    </div>
+    
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                        <i data-lucide="users" class="w-4 h-4"></i> Team Squads
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-3">
+                            <p id="md-list-t1-title" class="text-[10px] font-bold text-gray-400 uppercase mb-2 border-b border-gray-200 dark:border-gray-600 pb-1 truncate">Team A</p>
+                            <div id="md-list-t1" class="space-y-2">
+                                <p class="text-xs text-gray-400 italic">Loading...</p>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-3">
+                            <p id="md-list-t2-title" class="text-[10px] font-bold text-gray-400 uppercase mb-2 border-b border-gray-200 dark:border-gray-600 pb-1 truncate">Team B</p>
+                            <div id="md-list-t2" class="space-y-2">
+                                <p class="text-xs text-gray-400 italic">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div id="md-layout-race" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-700 font-bold">
+                                <tr>
+                                    <th class="px-4 py-3">Rank</th>
+                                    <th class="px-4 py-3">Participant</th>
+                                    <th id="md-race-metric-header" class="px-4 py-3 text-right">Time/Dist</th>
+                                </tr>
+                            </thead>
+                            <tbody id="md-race-tbody" class="divide-y divide-gray-100 dark:divide-gray-700">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+    
+            </div>
+        </div>
+    </div>
     <div id="modal-confirm" class="fixed inset-0 z-[70] bg-black/60 hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-scale-in">
             <h3 id="confirm-title" class="text-lg font-bold mb-2 dark:text-white">Confirm Action</h3>
