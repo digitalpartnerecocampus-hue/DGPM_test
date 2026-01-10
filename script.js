@@ -143,7 +143,7 @@ function setupTabSystem() {
     }
 }
 
-// --- 4. SCHEDULE MODULE (UPDATED FOR CLICKABLE CARDS) ---
+// --- 4. SCHEDULE MODULE ---
 
 window.filterSchedule = function(view) {
     currentScheduleView = view;
@@ -255,7 +255,7 @@ async function loadSchedule() {
     lucide.createIcons();
 }
 
-// --- NEW FUNCTION: OPEN MATCH DETAILS ---
+// --- OPEN MATCH DETAILS ---
 window.openMatchDetails = async function(matchId) {
     const { data: match } = await supabaseClient.from('matches').select('*, sports(name)').eq('id', matchId).single();
     if(!match) return;
@@ -275,42 +275,35 @@ window.openMatchDetails = async function(matchId) {
     if (isTeamSport) {
         document.getElementById('md-layout-team').classList.remove('hidden');
         
-        // Fill Scoreboard
         document.getElementById('md-t1-name').innerText = match.team1_name;
         document.getElementById('md-t2-name').innerText = match.team2_name;
         document.getElementById('md-t1-score').innerText = match.score1 || '0';
         document.getElementById('md-t2-score').innerText = match.score2 || '0';
         
-        // Fill Lists Headers
         document.getElementById('md-list-t1-title').innerText = match.team1_name;
         document.getElementById('md-list-t2-title').innerText = match.team2_name;
 
-        // Fetch Squads
         loadSquadList(match.team1_name, match.sport_id, 'md-list-t1');
         loadSquadList(match.team2_name, match.sport_id, 'md-list-t2');
 
     } else if (isRaceSport) {
         document.getElementById('md-layout-race').classList.remove('hidden');
         
-        // Set Header for Metric (Distance vs Time)
         const isThrow = sportName.includes('Shotput');
         document.getElementById('md-race-metric-header').innerText = isThrow ? 'Distance' : 'Time';
 
-        // Parse JSON Details
         const tbody = document.getElementById('md-race-tbody');
         tbody.innerHTML = '';
         
         let results = [];
         try {
             results = match.details ? (typeof match.details === 'string' ? JSON.parse(match.details) : match.details) : [];
-            // If it's not an array, maybe it's an object with a 'results' key? Adjust based on your JSON structure
             if(!Array.isArray(results) && results.results) results = results.results;
         } catch(e) { console.error("JSON Error", e); }
 
         if (!results || results.length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 italic">No results data available yet.</td></tr>';
         } else {
-            // Sort by Rank
             results.sort((a, b) => (a.rank || 99) - (b.rank || 99));
 
             tbody.innerHTML = results.map(r => `
@@ -332,12 +325,11 @@ window.openMatchDetails = async function(matchId) {
     document.getElementById('modal-match-details').classList.remove('hidden');
 }
 
-// Helper to fetch Team Members using Team Name + Sport ID
+// Helper to fetch Team Members
 async function loadSquadList(teamName, sportId, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = '<p class="text-xs text-gray-400 italic">Loading...</p>';
 
-    // 1. Find Team ID
     const { data: teamData } = await supabaseClient
         .from('teams')
         .select('id')
@@ -350,12 +342,11 @@ async function loadSquadList(teamName, sportId, containerId) {
         return;
     }
 
-    // 2. Fetch Members
     const { data: members } = await supabaseClient
         .from('team_members')
         .select('users(first_name, last_name, class_name)')
         .eq('team_id', teamData.id)
-        .eq('status', 'Accepted'); // Only show accepted members
+        .eq('status', 'Accepted'); 
 
     if (!members || members.length === 0) {
         container.innerHTML = '<p class="text-xs text-gray-400 italic">No members.</p>';
@@ -652,7 +643,7 @@ window.createTeam = async function() {
     }
 }
 
-// --- 6. REGISTRATION MODULE (FIXED) ---
+// --- 6. REGISTRATION MODULE ---
 
 window.toggleRegisterView = function(view) {
     document.getElementById('reg-section-new').classList.add('hidden');
@@ -697,7 +688,7 @@ function renderSportsList(list) {
     container.innerHTML = list.map(s => {
         const isReg = myRegistrations.includes(s.id);
         const btnClass = isReg 
-            ? "bg-green-100 dark:bg-green-900/30 text-green-600 border border-green-200 dark:border-green-800" 
+            ? "bg-green-100 dark:bg-green-900/30 text-green-600 border border-green-200 dark:border-green-800 cursor-not-allowed" 
             : "bg-black dark:bg-white text-white dark:text-black shadow-lg hover:opacity-90";
         
         return `
@@ -712,7 +703,7 @@ function renderSportsList(list) {
                 <p class="text-[10px] uppercase font-bold text-gray-400 mt-1">${s.type} Sport</p>
             </div>
 
-            <button onclick="${isReg ? '' : `window.openRegistrationModal('${s.id}')`}" class="relative z-10 w-full py-2 rounded-lg text-xs font-bold transition-all ${btnClass}">
+            <button onclick="${isReg ? '' : `window.openRegistrationModal('${s.id}')`}" class="relative z-10 w-full py-2 rounded-lg text-xs font-bold transition-all ${btnClass}" ${isReg ? 'disabled' : ''}>
                 ${isReg ? '<i data-lucide="check" class="w-3 h-3 inline mr-1"></i> Registered' : 'Register Now'}
             </button>
         </div>`;
@@ -862,24 +853,53 @@ window.openRegistrationModal = async function(id) {
 }
 
 window.confirmRegistration = async function() {
+    // 1. Selector for the button
+    const btn = document.querySelector('#modal-register button[type="button"]');
+    
+    // 2. Disable Button & Show Loading State
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = "Registering...";
+
+    // 3. Mobile Check
     if(!currentUser.mobile) {
         const phone = prompt("⚠️ Mobile number is required. Please enter yours:");
-        if(!phone || phone.length < 10) return showToast("Invalid Mobile Number", "error");
+        if(!phone || phone.length < 10) {
+            btn.disabled = false;
+            btn.innerText = originalText;
+            return showToast("Invalid Mobile Number", "error");
+        }
         await supabaseClient.from('users').update({mobile: phone}).eq('id', currentUser.id);
         currentUser.mobile = phone; 
     }
 
+    // 4. DB Call
     const { error } = await supabaseClient.from('registrations').insert({
         user_id: currentUser.id,
         sport_id: selectedSportForReg.id
     });
 
-    if(error) showToast("Error registering", "error");
+    if(error) {
+        // Re-enable button on error
+        btn.disabled = false;
+        btn.innerText = originalText;
+        showToast("Error registering: " + error.message, "error");
+    }
     else {
+        // 5. Success Logic - Update Local State IMMEDIATELY
+        if (!myRegistrations.includes(selectedSportForReg.id)) {
+            myRegistrations.push(selectedSportForReg.id);
+        }
+
         showToast("Registration Successful!", "success");
         window.closeModal('modal-register');
-        await fetchMyRegistrations();
-        window.toggleRegisterView('new');
-        window.loadSportsDirectory();
+        
+        // 6. Reset Button for next time
+        btn.disabled = false;
+        btn.innerText = originalText;
+
+        // 7. Update UI Instantly without re-fetching
+        // We know we are in 'new registration' view if we just clicked this
+        window.loadSportsDirectory(); // This will use the updated 'myRegistrations' array to re-render buttons
     }
 }
