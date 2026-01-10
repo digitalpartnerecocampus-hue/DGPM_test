@@ -898,8 +898,9 @@ window.confirmRegistration = async function() {
         btn.disabled = false;
         btn.innerText = originalText;
 
-        // 7. Update UI Instantly without re-fetching
-        // We know we are in 'new registration' view if we just clicked this
-        window.loadSportsDirectory(); // This will use the updated 'myRegistrations' array to re-render buttons
+        // 7. Force Instant UI Update
+        // Instead of calling loadSportsDirectory() which might return early,
+        // we call renderSportsList directly to force a re-paint.
+        renderSportsList(allSportsList);
     }
 }
