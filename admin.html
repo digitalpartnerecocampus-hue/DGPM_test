@@ -7,7 +7,6 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -37,20 +36,17 @@
         </div>
         
         <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-            <button onclick="switchSection('dashboard')" id="nav-dashboard" class="nav-item active flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
+            <button onclick="switchAdminTab('dashboard')" class="nav-item active flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
                 <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
             </button>
-            <button onclick="switchSection('sports')" id="nav-sports" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                <i data-lucide="dumbbell" class="w-5 h-5"></i> Sports Manager
+            <button onclick="switchAdminTab('matches')" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
+                <i data-lucide="swords" class="w-5 h-5"></i> Match Manager
             </button>
-            <button onclick="switchSection('matches')" id="nav-matches" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                <i data-lucide="swords" class="w-5 h-5"></i> Match Center
-            </button>
-            <button onclick="switchSection('users')" id="nav-users" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
+            <button onclick="switchAdminTab('users')" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
                 <i data-lucide="users" class="w-5 h-5"></i> Student Database
             </button>
-            <button onclick="switchSection('data')" id="nav-data" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
-                <i data-lucide="database" class="w-5 h-5"></i> Data & Exports
+            <button onclick="switchAdminTab('data')" class="nav-item flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-xl transition-all">
+                <i data-lucide="database" class="w-5 h-5"></i> Registration Data
             </button>
         </nav>
 
@@ -61,193 +57,173 @@
         </div>
     </aside>
 
-    <div class="md:hidden fixed top-0 w-full h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4">
-        <h1 class="text-lg font-black italic">URJA <span class="text-brand-primary">ADMIN</span></h1>
-        <button onclick="toggleMobileMenu()" class="p-2 rounded-lg bg-gray-100 text-gray-600">
-            <i data-lucide="menu" class="w-6 h-6"></i>
-        </button>
-    </div>
-
-    <div id="mobile-menu" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="toggleMobileMenu()"></div>
-    <div id="mobile-sidebar" class="fixed inset-y-0 right-0 w-64 bg-white z-50 transform translate-x-full transition-transform duration-300 md:hidden flex flex-col">
-        <div class="p-4 border-b border-gray-100 flex justify-between items-center">
-            <span class="font-bold text-gray-500">Menu</span>
-            <button onclick="toggleMobileMenu()"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </div>
-        <nav class="flex-1 p-4 space-y-2">
-            <button onclick="switchSection('dashboard'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Dashboard</button>
-            <button onclick="switchSection('sports'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Sports</button>
-            <button onclick="switchSection('matches'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Matches</button>
-            <button onclick="switchSection('users'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Students</button>
-            <button onclick="switchSection('data'); toggleMobileMenu()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold rounded-xl hover:bg-gray-100">Data & Exports</button>
-            <button onclick="adminLogout()" class="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-red-600 mt-4">Logout</button>
-        </nav>
-    </div>
-
     <main class="flex-1 h-full overflow-y-auto bg-gray-50 p-6 md:p-10 pt-20 md:pt-10">
         
-        <div id="section-dashboard" class="admin-section animate-fade-in">
+        <div id="tab-dashboard" class="admin-tab-content animate-fade-in">
             <h2 class="text-2xl font-bold mb-6">Overview</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Total Students</p>
-                        <h3 class="text-3xl font-black text-gray-800" id="stat-users">-</h3>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Students</p>
+                        <h3 class="text-3xl font-black text-gray-800" id="stat-users">0</h3>
                     </div>
                     <div class="p-3 bg-blue-50 text-blue-600 rounded-xl"><i data-lucide="users" class="w-6 h-6"></i></div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Registrations</p>
-                        <h3 class="text-3xl font-black text-gray-800" id="stat-regs">-</h3>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Registrations</p>
+                        <h3 class="text-3xl font-black text-gray-800" id="stat-registrations">0</h3>
                     </div>
                     <div class="p-3 bg-green-50 text-green-600 rounded-xl"><i data-lucide="clipboard-check" class="w-6 h-6"></i></div>
                 </div>
-                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Teams Created</p>
-                        <h3 class="text-3xl font-black text-gray-800" id="stat-teams">-</h3>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Matches</p>
+                        <h3 class="text-3xl font-black text-indigo-600" id="stat-matches">0</h3>
                     </div>
-                    <div class="p-3 bg-purple-50 text-purple-600 rounded-xl"><i data-lucide="shield" class="w-6 h-6"></i></div>
-                </div>
-                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Live Matches</p>
-                        <h3 class="text-3xl font-black text-red-500" id="stat-live">-</h3>
-                    </div>
-                    <div class="p-3 bg-red-50 text-red-600 rounded-xl"><i data-lucide="zap" class="w-6 h-6"></i></div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h3 class="font-bold text-lg mb-4">System Alerts</h3>
-                <div id="dashboard-alerts" class="space-y-3">
-                    <p class="text-sm text-gray-500">Checking system status...</p>
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><i data-lucide="zap" class="w-6 h-6"></i></div>
                 </div>
             </div>
         </div>
 
-        <div id="section-sports" class="admin-section hidden animate-fade-in">
-            <h2 class="text-2xl font-bold mb-6">Sports Manager</h2>
-            <div id="admin-sports-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-        </div>
-
-        <div id="section-matches" class="admin-section hidden animate-fade-in">
-            <h2 class="text-2xl font-bold mb-6">Match Center</h2>
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-8">
-                <div class="flex border-b border-gray-100">
-                    <button onclick="toggleMatchTab('schedule')" id="tab-match-schedule" class="flex-1 py-3 text-sm font-bold text-brand-primary border-b-2 border-brand-primary bg-gray-50">Schedule New</button>
-                    <button onclick="toggleMatchTab('live')" id="tab-match-live" class="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">Live Console</button>
+        <div id="tab-matches" class="admin-tab-content hidden animate-fade-in">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Match Manager</h2>
+                    <p class="text-sm text-gray-500">Create matches, update scores, and manage squads.</p>
                 </div>
-                <div id="view-match-schedule" class="p-6">
-                    <form id="create-match-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <select id="match-sport-select" class="input-field" onchange="loadTeamsForMatch(this.value)">
-                            <option value="">Select Sport...</option>
-                        </select>
-                        <input type="datetime-local" id="match-time" class="input-field">
-                        <div class="md:col-span-2 grid grid-cols-2 gap-4">
-                            <select id="match-team-a" class="input-field"><option>Select Participant A...</option></select>
-                            <select id="match-team-b" class="input-field"><option>Select Participant B...</option></select>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1">
+                    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm sticky top-0">
+                        <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i> Match Details
+                        </h3>
+                        <form id="match-form" onsubmit="handleMatchSubmit(event)" class="space-y-4">
+                            <input type="hidden" name="matchId" id="matchId">
+                            
+                            <div>
+                                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Sport & View Type</label>
+                                <div class="grid grid-cols-2 gap-2 mt-1">
+                                    <select name="sport" id="match-sport-select" class="input-field" required>
+                                        <option value="">Select Sport</option>
+                                    </select>
+                                    <select name="viewType" class="input-field" required>
+                                        <option value="versus">Standard (Team)</option>
+                                        <option value="cricket">Cricket Special</option>
+                                        <option value="metric">Athletics (Race)</option>
+                                        <option value="no-view">Solo (Minimal)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Status</label>
+                                    <select name="status" class="input-field">
+                                        <option value="Scheduled">Scheduled</option>
+                                        <option value="Live">Live</option>
+                                        <option value="Finished">Finished</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Time/Date</label>
+                                    <input type="text" name="time" placeholder="e.g. 10:30 AM" class="input-field" required>
+                                </div>
+                            </div>
+
+                            <input type="text" name="venue" placeholder="Venue (e.g. Ground A)" class="input-field">
+
+                            <div class="border-t border-gray-100 pt-4">
+                                <label class="text-[10px] font-bold text-indigo-600 uppercase ml-1">Teams / Participants</label>
+                                <div class="grid grid-cols-2 gap-2 mt-1">
+                                    <input type="text" name="teamA" placeholder="Team A Name" class="input-field">
+                                    <input type="text" name="teamB" placeholder="Team B Name" class="input-field">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 mt-2">
+                                    <textarea name="squadA" placeholder="Squad A (comma separated)" class="input-field h-20 text-xs"></textarea>
+                                    <textarea name="squadB" placeholder="Squad B (comma separated)" class="input-field h-20 text-xs"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 p-3 rounded-xl space-y-3">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase">Live Scoring (Optional)</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" name="scoreA" placeholder="Score A" class="input-field">
+                                    <input type="number" name="scoreB" placeholder="Score B" class="input-field">
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <input type="number" name="runs" placeholder="Runs" class="input-field">
+                                    <input type="number" name="wickets" placeholder="Wkts" class="input-field">
+                                    <input type="text" name="overs" placeholder="Overs" class="input-field">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-colors">
+                                Save Match Data
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <div id="admin-match-list" class="space-y-4">
                         </div>
-                        <input type="text" id="match-location" placeholder="Location (e.g. Ground A)" class="input-field md:col-span-2">
-                        <button type="button" onclick="createMatch()" class="w-full py-3 bg-brand-primary text-white font-bold rounded-xl md:col-span-2 hover:bg-indigo-700">Schedule Match</button>
-                    </form>
-                </div>
-                <div id="view-match-live" class="p-6 hidden">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-sm text-gray-500 uppercase">Active Matches</h3>
-                        <button onclick="fetchAdminMatches()" class="text-xs text-brand-primary font-bold hover:underline">Refresh</button>
-                    </div>
-                    <div id="admin-live-matches" class="space-y-4"></div>
                 </div>
             </div>
         </div>
 
-        <div id="section-users" class="admin-section hidden animate-fade-in">
-            <h2 class="text-2xl font-bold mb-6">Student Database</h2>
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div class="flex flex-col md:flex-row gap-3 mb-6">
-                    <input type="text" id="user-search" placeholder="Search by Name, ID, or Email..." class="input-field md:flex-1">
-                    <button onclick="fetchUsers()" class="bg-black text-white font-bold rounded-xl px-6 py-2 hover:bg-gray-800 whitespace-nowrap">Load Data</button>
-                </div>
-
-                <div class="flex gap-3 mb-4">
-                    <button onclick="exportUsers('pdf')" class="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 text-xs">
-                        <i data-lucide="file-down" class="w-4 h-4"></i> Export List (PDF)
-                    </button>
-                    <button onclick="exportUsers('excel')" class="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 font-bold rounded-lg hover:bg-green-200 text-xs">
-                        <i data-lucide="sheet" class="w-4 h-4"></i> Export List (Excel)
-                    </button>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-600">
-                        <thead class="bg-gray-50 text-gray-900 uppercase font-bold text-xs border-b border-gray-200">
-                            <tr>
-                                <th class="px-4 py-3">Student Details</th>
-                                <th class="px-4 py-3">Student ID</th>
-                                <th class="px-4 py-3">Class</th>
-                                <th class="px-4 py-3">Mobile</th>
-                                <th class="px-4 py-3">Role</th>
-                            </tr>
-                        </thead>
-                        <tbody id="user-table-body">
-                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Click "Load Data" to fetch students.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="section-data" class="admin-section hidden animate-fade-in">
+        <div id="tab-data" class="admin-tab-content hidden animate-fade-in">
             <h2 class="text-2xl font-bold mb-6">Registration Data</h2>
             <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-                    <input type="text" id="data-search" placeholder="Search Name/ID..." class="input-field">
-                    <select id="filter-sport" class="input-field"><option value="">All Sports</option></select>
-                    <select id="filter-status" class="input-field">
-                        <option value="">All Statuses</option>
-                        <option value="Registered">Registered</option>
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="Playing">Playing</option>
-                        <option value="Played">Played</option>
-                        <option value="Won">Won</option>
+                <div class="flex flex-col md:flex-row gap-3 mb-6">
+                    <select id="filter-sport" class="input-field md:w-64">
+                        <option value="">Filter by Sport</option>
                     </select>
-                    <button onclick="searchData()" class="bg-black text-white font-bold rounded-xl hover:bg-gray-800">Apply Filters</button>
+                    <button onclick="fetchRegistrations()" class="bg-indigo-600 text-white font-bold rounded-xl px-8 py-2 hover:bg-indigo-700">Fetch Data</button>
+                    
+                    <div class="flex gap-2 ml-auto">
+                        <button onclick="exportData('pdf')" class="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 text-xs border border-red-100">
+                            <i data-lucide="file-text" class="w-4 h-4"></i> PDF
+                        </button>
+                        <button onclick="exportData('excel')" class="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 font-bold rounded-xl hover:bg-green-100 text-xs border border-green-100">
+                            <i data-lucide="table" class="w-4 h-4"></i> Excel
+                        </button>
+                    </div>
                 </div>
-                <div class="flex gap-3 mb-4">
-                    <button onclick="exportData('pdf')" class="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 text-xs">
-                        <i data-lucide="file-down" class="w-4 h-4"></i> Export PDF
-                    </button>
-                    <button onclick="exportData('excel')" class="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 font-bold rounded-lg hover:bg-green-200 text-xs">
-                        <i data-lucide="sheet" class="w-4 h-4"></i> Export Excel
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-600">
-                        <thead class="bg-gray-50 text-gray-900 uppercase font-bold text-xs border-b border-gray-200">
+
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-900 uppercase font-bold text-[10px] tracking-widest border-b border-gray-100">
                             <tr>
-                                <th class="px-4 py-3">Student</th>
-                                <th class="px-4 py-3">Sport</th>
-                                <th class="px-4 py-3">Type</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Action</th>
+                                <th class="px-6 py-4">Student</th>
+                                <th class="px-6 py-4">Sport</th>
+                                <th class="px-6 py-4">Class</th>
+                                <th class="px-6 py-4">Status</th>
+                                <th class="px-6 py-4 text-right">Contact</th>
                             </tr>
                         </thead>
-                        <tbody id="data-table-body">
-                            <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Apply filters to view data.</td></tr>
+                        <tbody id="data-table-body" class="divide-y divide-gray-50">
+                            <tr><td colspan="5" class="px-6 py-12 text-center text-gray-400">Select a sport to load registrations.</td></tr>
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <div id="tab-users" class="admin-tab-content hidden animate-fade-in">
+            <h2 class="text-2xl font-bold mb-6">Student Database</h2>
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <p class="text-gray-400 text-center py-20">Full database access is restricted to master admins.</p>
             </div>
         </div>
 
     </main>
 
     <div id="toast-container" class="fixed bottom-10 right-10 z-50 transform translate-y-20 opacity-0 transition-all duration-300">
-        <div id="toast-content" class="px-6 py-4 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-3 bg-gray-900 text-white">
-            <span id="toast-text">Action Successful</span>
+        <div id="toast-content" class="px-6 py-4 rounded-xl shadow-2xl font-bold text-sm flex items-center gap-3">
+            <span id="toast-text"></span>
         </div>
     </div>
 
